@@ -1,0 +1,290 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GarbageApp Admin</title>
+<style>
+  :root { --green:#2e7d32; --bg:#f4f6f5; }
+  * { box-sizing:border-box; font-family:system-ui,Segoe UI,Arial,sans-serif; }
+  body { margin:0; background:var(--bg); color:#1b1b1b; }
+  header { background:var(--green); color:#fff; padding:14px 22px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:18px; }
+  nav { display:flex; gap:6px; padding:10px 22px; background:#fff; border-bottom:1px solid #ddd; flex-wrap:wrap; }
+  nav button { border:1px solid #ccc; background:#fff; padding:8px 16px; border-radius:20px; cursor:pointer; }
+  nav button.active { background:var(--green); color:#fff; border-color:var(--green); }
+  main { padding:22px; max-width:1100px; margin:0 auto; }
+  .card { background:#fff; border-radius:10px; padding:18px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid #eee; vertical-align:top; }
+  th { color:#555; font-weight:600; }
+  .btn { border:none; border-radius:6px; padding:7px 12px; cursor:pointer; color:#fff; font-size:13px; }
+  .btn.green { background:var(--green); } .btn.red { background:#c62828; }
+  .btn.grey { background:#607d8b; } .btn:disabled { opacity:.5; cursor:default; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; background:#e0e0e0; }
+  .pill.PENDING { background:#fff3cd; } .pill.APPROVED,.pill.CONFIRMED,.pill.RESOLVED { background:#c8e6c9; }
+  .pill.REJECTED,.pill.DISPUTED,.pill.OPEN { background:#ffcdd2; }
+  input,select,textarea { padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; width:100%; }
+  label { font-size:13px; color:#444; display:block; margin:10px 0 4px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+  .stat { background:#fff; border-radius:10px; padding:16px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .stat b { font-size:26px; display:block; color:var(--green); }
+  .muted { color:#777; font-size:12px; }
+  .msg { padding:8px 12px; border-radius:8px; margin:6px 0; max-width:75%; }
+  .msg.admin { background:#dcfce7; margin-left:auto; }
+  .msg.user { background:#eee; }
+  #login { max-width:360px; margin:80px auto; }
+  h3 { margin-top:0; }
+</style>
+</head>
+<body>
+
+<div id="login" class="card">
+  <h3>Admin login</h3>
+  <label>Email</label><input id="email" type="email" value="admin@garbageapp.com">
+  <label>Password</label><input id="password" type="password">
+  <p><button class="btn green" style="width:100%" onclick="login()">Sign in</button></p>
+  <div id="loginErr" class="muted" style="color:#c62828"></div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <h1>♻️ GarbageApp Admin Console</h1>
+    <button class="btn grey" onclick="logout()">Logout</button>
+  </header>
+  <nav>
+    <button data-tab="topups" class="active" onclick="show('topups')">Top-ups</button>
+    <button data-tab="disputes" onclick="show('disputes')">Disputes</button>
+    <button data-tab="announcements" onclick="show('announcements')">Announcements</button>
+    <button data-tab="support" onclick="show('support')">Support</button>
+    <button data-tab="stats" onclick="show('stats')">Stats</button>
+  </nav>
+  <main>
+    <div id="tab-topups"></div>
+    <div id="tab-disputes"></div>
+    <div id="tab-announcements"></div>
+    <div id="tab-support"></div>
+    <div id="tab-stats"></div>
+  </main>
+</div>
+
+<script>
+const API = location.origin + '/api';
+let TOKEN = localStorage.getItem('adminToken') || '';
+let ME = null;
+let currentTab = 'topups';
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    method: opts.method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}),
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || ('HTTP ' + res.status));
+  return json.data !== undefined ? json.data : json;
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const when = t => t ? new Date(t).toLocaleString() : '';
+
+async function login() {
+  try {
+    const d = await api('/auth/login', { method:'POST', body:{ email: email.value, password: password.value }});
+    if (d.user.role !== 'ADMIN') throw new Error('This console is for admins only.');
+    TOKEN = d.token; ME = d.user;
+    localStorage.setItem('adminToken', TOKEN);
+    enter();
+  } catch (e) { loginErr.textContent = e.message; }
+}
+function logout() { localStorage.removeItem('adminToken'); location.reload(); }
+
+function enter() {
+  login.style.display = 'none'; app.style.display = 'block';
+  show(currentTab);
+}
+
+function show(tab) {
+  currentTab = tab;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  ['topups','disputes','announcements','support','stats'].forEach(t =>
+    document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none');
+  loadTab(tab);
+}
+
+function loadTab(tab) {
+  if (tab === 'topups') loadTopups();
+  if (tab === 'disputes') loadDisputes();
+  if (tab === 'announcements') loadAnnouncements();
+  if (tab === 'support') loadTickets();
+  if (tab === 'stats') loadStats();
+}
+
+/* ---------- Top-ups ---------- */
+async function loadTopups(status = 'PENDING') {
+  const el = document.getElementById('tab-topups');
+  const rows = await api('/topups' + (status && status !== 'ALL' ? '?status=' + status : ''));
+  el.innerHTML = `
+    <div class="card"><h3>eCoin top-up requests</h3>
+      <select onchange="loadTopups(this.value)" style="width:auto">
+        ${['PENDING','APPROVED','REJECTED','ALL'].map(s => `<option ${s===status?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="card"><table>
+      <tr><th>ID</th><th>Collector</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th><th>Created</th><th></th></tr>
+      ${rows.map(r => `<tr>
+        <td>${r.id}</td><td>${esc(r.collectorName)}</td><td>P${r.amount}</td>
+        <td>${esc(r.paymentMethod)}</td><td>${esc(r.referenceNumber)}</td>
+        <td><span class="pill ${r.status}">${r.status}</span></td><td>${when(r.createdAt)}</td>
+        <td>${r.status === 'PENDING' ? `
+          <button class="btn green" onclick="decideTopup(${r.id},'approve')">Approve</button>
+          <button class="btn red" onclick="decideTopup(${r.id},'reject')">Reject</button>` : ''}
+        </td></tr>`).join('') || '<tr><td colspan=8 class=muted>Nothing here.</td></tr>'}
+    </table></div>`;
+}
+async function decideTopup(id, action) {
+  let body = {};
+  if (action === 'reject') {
+    const reason = prompt('Rejection reason:');
+    if (!reason) return;
+    body.reason = reason;
+  }
+  try {
+    const d = await api(`/topups/${id}/${action}`, { method:'POST', body });
+    alert(d && d.message ? d.message : 'Done'); loadTopups();
+  } catch (e) { alert(e.message); }
+}
+
+/* ---------- Disputes ---------- */
+async function loadDisputes() {
+  const el = document.getElementById('tab-disputes');
+  const rows = await api('/transactions/disputed');
+  el.innerHTML = `<div class="card"><h3>Disputed transactions (${rows.length})</h3>
+    <p class="muted">Release = collector gets paid (normal flow, fee charged). Cancel = order cancelled, no payment.</p></div>` +
+  (rows.length === 0 ? '<div class="card muted">No disputes. 🎉</div>' : rows.map(t => `
+    <div class="card">
+      <b>Transaction #${t.id}</b> · Order #${t.orderId} · Total <b>P${Number(t.totalAmount).toFixed(2)}</b>
+      <span class="pill DISPUTED">${t.confirmationStatus}</span><br>
+      <span class="muted">Client: ${esc(t.client?.name)} · Collector: ${esc(t.collector?.name)} · Disputed ${when(t.createdAt)}</span>
+      <table style="margin-top:10px"><tr><th>Material</th><th>Kg</th><th>P/kg</th><th>Subtotal</th></tr>
+      ${(t.items||[]).map(i => `<tr><td>${esc(i.material?.name)}</td><td>${Number(i.weightKg)} kg</td><td>P${Number(i.pricePerKg)}</td><td>P${Number(i.subtotal).toFixed(2)}</td></tr>`).join('')}
+      </table>
+      ${t.photoPath ? `<p><a href="${location.origin}/${esc(t.photoPath)}" target="_blank">📷 View proof photo</a></p>` : ''}
+      <p>
+        <button class="btn green" onclick="resolve(${t.id},'RELEASE')">✔ Release payment to collector</button>
+        <button class="btn red" onclick="resolve(${t.id},'CANCEL')">✖ Cancel order (no payment)</button>
+      </p>
+    </div>`).join(''));
+}
+async function resolve(id, outcome) {
+  if (!confirm(outcome === 'RELEASE' ? 'Release payment to the collector?' : 'Cancel this order with no payment?')) return;
+  try { await api(`/transactions/${id}/resolve`, { method:'POST', body:{ outcome } }); loadDisputes(); }
+  catch (e) { alert(e.message); }
+}
+
+/* ---------- Announcements ---------- */
+async function loadAnnouncements() {
+  const el = document.getElementById('tab-announcements');
+  const rows = await api('/announcements/all');
+  el.innerHTML = `
+    <div class="card"><h3>New announcement</h3>
+      <label>Title</label><input id="aTitle">
+      <label>Content</label><textarea id="aBody" rows="3"></textarea>
+      <label>Audience</label>
+      <select id="aAud"><option>GENERAL</option><option>CLIENT</option><option>COLLECTOR</option></select>
+      <p><button class="btn green" onclick="postAnnouncement()">Publish</button></p></div>
+    <div class="card"><h3>All announcements</h3><table>
+      <tr><th>Title</th><th>Audience</th><th>Active</th><th>Created</th><th></th></tr>
+      ${rows.map(a => `<tr><td><b>${esc(a.title)}</b><br><span class="muted">${esc(a.content)}</span></td>
+        <td>${a.audience}</td><td>${a.isActive ? '✅' : '⛔'}</td><td>${when(a.createdAt)}</td>
+        <td>${a.isActive ? `<button class="btn red" onclick="deactivateAnnouncement(${a.id})">Deactivate</button>` : ''}</td></tr>`).join('') || '<tr><td colspan=5 class=muted>None yet.</td></tr>'}
+    </table></div>`;
+}
+async function postAnnouncement() {
+  try {
+    await api('/announcements', { method:'POST', body:{ title:aTitle.value, content:aBody.value, audience:aAud.value } });
+    loadAnnouncements();
+  } catch (e) { alert(e.message); }
+}
+async function deactivateAnnouncement(id) {
+  try { await api(`/announcements/${id}/deactivate`, { method:'PATCH' }); loadAnnouncements(); }
+  catch (e) { alert(e.message); }
+}
+
+/* ---------- Support ---------- */
+let openTicketId = null;
+async function loadTickets(status = 'OPEN') {
+  const el = document.getElementById('tab-support');
+  if (openTicketId) return renderTicket(el);
+  const rows = await api('/support' + (status && status !== 'ALL' ? '?status=' + status : ''));
+  el.innerHTML = `
+    <div class="card"><h3>Support tickets</h3>
+      <select onchange="loadTickets(this.value)" style="width:auto">
+        ${['OPEN','RESOLVED','ALL'].map(s => `<option ${s===status?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="card"><table>
+      <tr><th>ID</th><th>Subject</th><th>From</th><th>Status</th><th>Created</th><th></th></tr>
+      ${rows.map(t => `<tr><td>${t.id}</td><td>${esc(t.subject)}</td><td>${esc(t.owner?.name)}</td>
+        <td><span class="pill ${t.status}">${t.status}</span></td><td>${when(t.createdAt)}</td>
+        <td><button class="btn grey" onclick="openTicket(${t.id})">Open</button></td></tr>`).join('') || '<tr><td colspan=6 class=muted>No tickets.</td></tr>'}
+    </table></div>`;
+}
+async function openTicket(id) { openTicketId = id; renderTicket(document.getElementById('tab-support')); }
+async function renderTicket(el) {
+  const t = await api('/support/' + openTicketId);
+  el.innerHTML = `
+    <div class="card">
+      <button class="btn grey" onclick="openTicketId=null;loadTickets()">← Back</button>
+      <h3>#${t.id} ${esc(t.subject)} <span class="pill ${t.status}">${t.status}</span></h3>
+      <div style="display:flex;flex-direction:column">
+        ${(t.messages||[]).map(m => `<div class="msg ${m.sender?.role === 'ADMIN' ? 'admin' : 'user'}">
+          <b>${esc(m.sender?.name)}</b> <span class="muted">${when(m.createdAt)}</span><br>${esc(m.message)}</div>`).join('')}
+      </div>
+      ${t.status === 'OPEN' ? `
+        <label>Reply</label><textarea id="tReply" rows="2"></textarea>
+        <p>
+          <button class="btn green" onclick="replyTicket(${t.id})">Send reply</button>
+          <button class="btn grey" onclick="closeTicket(${t.id})">Mark resolved</button>
+        </p>` : ''}
+    </div>`;
+}
+async function replyTicket(id) {
+  try { await api(`/support/${id}/messages`, { method:'POST', body:{ message:tReply.value } }); renderTicket(document.getElementById('tab-support')); }
+  catch (e) { alert(e.message); }
+}
+async function closeTicket(id) {
+  try { await api(`/support/${id}/resolve`, { method:'POST' }); openTicketId = null; loadTickets(); }
+  catch (e) { alert(e.message); }
+}
+
+/* ---------- Stats ---------- */
+async function loadStats() {
+  const s = await api('/stats/admin');
+  const orders = Object.entries(s.ordersByStatus || {}).map(([k,v]) =>
+    `<div class="stat"><b>${v}</b>${k.replaceAll('_',' ')}</div>`).join('');
+  document.getElementById('tab-stats').innerHTML = `
+    <div class="stats">
+      <div class="stat"><b>${s.totalClients}</b>Clients</div>
+      <div class="stat"><b>${s.totalCollectors}</b>Collectors</div>
+      <div class="stat"><b>${s.totalTransactions ?? 0}</b>Transactions</div>
+      <div class="stat"><b>P${Number(s.totalMoneyProcessed ?? 0).toFixed(2)}</b>Total earnings</div>
+      <div class="stat"><b>${Number(s.totalKilogramsRecycled ?? 0).toFixed(1)} kg</b>Waste collected</div>
+    </div>
+    <h3 style="margin-top:20px">Orders by status</h3>
+    <div class="stats">${orders}</div>
+    <h3 style="margin-top:20px">Top materials</h3>
+    <div class="card"><table><tr><th>Material</th><th>Kg collected</th></tr>
+      ${(s.kilogramsByMaterial||[]).map(m => `<tr><td>${esc(m.material)}</td><td>${Number(m.kg).toFixed(1)} kg</td></tr>`).join('')}
+    </table></div>`;
+}
+
+/* boot */
+if (TOKEN) {
+  api('/auth/me').then(u => { if (u.user.role === 'ADMIN' || u.role === 'ADMIN') { ME = u.user || u; enter(); } })
+    .catch(() => localStorage.removeItem('adminToken'));
+}
+</script>
+</body>
+</html>
+
