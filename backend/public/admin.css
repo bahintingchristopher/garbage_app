@@ -1,0 +1,30 @@
+  :root { --green:#2e7d32; --bg:#f4f6f5; }
+  * { box-sizing:border-box; font-family:system-ui,Segoe UI,Arial,sans-serif; }
+  body { margin:0; background:var(--bg); color:#1b1b1b; }
+  header { background:var(--green); color:#fff; padding:14px 22px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:18px; }
+  nav { display:flex; gap:6px; padding:10px 22px; background:#fff; border-bottom:1px solid #ddd; flex-wrap:wrap; }
+  nav button { border:1px solid #ccc; background:#fff; padding:8px 16px; border-radius:20px; cursor:pointer; }
+  nav button.active { background:var(--green); color:#fff; border-color:var(--green); }
+  main { padding:22px; max-width:1100px; margin:0 auto; }
+  .card { background:#fff; border-radius:10px; padding:18px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid #eee; vertical-align:top; }
+  th { color:#555; font-weight:600; }
+  .btn { border:none; border-radius:6px; padding:7px 12px; cursor:pointer; color:#fff; font-size:13px; }
+  .btn.green { background:var(--green); } .btn.red { background:#c62828; }
+  .btn.grey { background:#607d8b; } .btn:disabled { opacity:.5; cursor:default; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; background:#e0e0e0; }
+  .pill.PENDING { background:#fff3cd; } .pill.APPROVED,.pill.CONFIRMED,.pill.RESOLVED { background:#c8e6c9; }
+  .pill.REJECTED,.pill.DISPUTED,.pill.OPEN { background:#ffcdd2; }
+  input,select,textarea { padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; width:100%; }
+  label { font-size:13px; color:#444; display:block; margin:10px 0 4px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+  .stat { background:#fff; border-radius:10px; padding:16px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .stat b { font-size:26px; display:block; color:var(--green); }
+  .muted { color:#777; font-size:12px; }
+  .msg { padding:8px 12px; border-radius:8px; margin:6px 0; max-width:75%; }
+  .msg.admin { background:#dcfce7; margin-left:auto; }
+  .msg.user { background:#eee; }
+  #login { max-width:360px; margin:80px auto; }
+  h3 { margin-top:0; }

@@ -42,12 +42,34 @@ async function adminListAll() {
   return Announcement.findAll({ order: [["createdAt", "DESC"]], limit: 200 });
 }
 
-async function deactivate(id) {
+async function update(id, { title, content, audience } = {}) {
   const announcement = await Announcement.findByPk(id);
   if (!announcement) throw new ApiError(404, "Announcement not found");
-  announcement.isActive = false;
+  if (title !== undefined) {
+    if (!String(title).trim()) throw new ApiError(400, "title cannot be empty");
+    announcement.title = String(title).trim();
+  }
+  if (content !== undefined) {
+    if (!String(content).trim()) throw new ApiError(400, "content cannot be empty");
+    announcement.content = String(content).trim();
+  }
+  if (audience !== undefined) {
+    if (!AUDIENCES.includes(audience)) {
+      throw new ApiError(
+        400,
+        `audience must be one of: ${AUDIENCES.join(", ")}`
+      );
+    }
+    announcement.audience = audience;
+  }
   await announcement.save();
   return announcement;
 }
 
-module.exports = { create, listForRole, adminListAll, deactivate };
+async function remove(id) {
+  const announcement = await Announcement.findByPk(id);
+  if (!announcement) throw new ApiError(404, "Announcement not found");
+  await announcement.destroy();
+}
+
+module.exports = { create, listForRole, adminListAll, update, remove };

@@ -10,6 +10,7 @@ router.use(requireAuth);
 router.get("/", controller.list);
 router.post("/", requireRole("ADMIN"), controller.create);
 router.get("/all", requireRole("ADMIN"), controller.adminList);
-router.patch("/:id/deactivate", requireRole("ADMIN"), controller.deactivate);
+router.patch("/:id", requireRole("ADMIN"), controller.update);
+router.delete("/:id", requireRole("ADMIN"), controller.remove);
 
 module.exports = router;

@@ -34,7 +34,16 @@ exports.create = asyncHandler(async (req, res) => {
   });
 });
 
-exports.deactivate = asyncHandler(async (req, res) => {
-  const row = await service.deactivate(req.params.id);
-  res.json({ success: true, message: "Announcement removed", data: format(row) });
+exports.update = asyncHandler(async (req, res) => {
+  const row = await service.update(req.params.id, req.body);
+  res.json({
+    success: true,
+    message: "Announcement updated",
+    data: format(row),
+  });
+});
+
+exports.remove = asyncHandler(async (req, res) => {
+  await service.remove(req.params.id);
+  res.json({ success: true, message: "Announcement deleted" });
 });
