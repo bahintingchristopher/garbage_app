@@ -35,6 +35,11 @@ const Transaction = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
+    systemFee: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
+    },
     photo: {
       type: DataTypes.STRING(500),
     },

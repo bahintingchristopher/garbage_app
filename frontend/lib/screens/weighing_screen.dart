@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/material_service.dart';
 import '../services/order_service.dart';
 import '../services/transaction_service.dart';
+import '../config/api_config.dart';
 
 class _WeightRow {
   String? materialId;
@@ -85,6 +86,10 @@ class _WeighingScreenState extends State<WeighingScreen> {
     }
     return sum;
   }
+
+  double get _fee => _total * ApiConfig.systemFeePercent / 100;
+
+  double get _netToHand => _total - _fee;
 
   Future<void> _submit() async {
     final items = <Map<String, dynamic>>[];
@@ -207,16 +212,38 @@ class _WeighingScreenState extends State<WeighingScreen> {
                       color: Colors.green.shade50,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Client pays',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            Text('P${_total.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green.shade800)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Gross total'),
+                                Text('P${_total.toStringAsFixed(2)}'),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                    'System fee (${ApiConfig.systemFeePercent}%)'),
+                                Text('-P${_fee.toStringAsFixed(2)}'),
+                              ],
+                            ),
+                            const Divider(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Cash to hand the client',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                                Text('P${_netToHand.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade800)),
+                              ],
+                            ),
                           ],
                         ),
                       ),

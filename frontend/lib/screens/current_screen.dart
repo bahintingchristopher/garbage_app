@@ -148,6 +148,13 @@ class _CurrentScreenState extends State<CurrentScreen> {
     if (done == true) _load();
   }
 
+  String _feeOf(dynamic tx) =>
+      (((tx['systemFee'] as num?) ?? 0)).toStringAsFixed(2);
+
+  String _netOf(dynamic tx) => (((tx['netAmount'] as num?) ??
+          (tx['totalAmount'] as num? ?? 0)))
+      .toStringAsFixed(2);
+
   Future<void> _confirmPayment() async {
     final tx = _pendingTx!;
     final ok = await showDialog<bool>(
@@ -155,7 +162,10 @@ class _CurrentScreenState extends State<CurrentScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm payment?'),
         content: Text(
-            'Release P${tx['totalAmount']} in eCoins to ${tx['collector']['name']}?'),
+            'Gross: P${tx['totalAmount']}\n'
+                'Service fee (${ApiConfig.systemFeePercent}%): P${_feeOf(tx)}\n\n'
+                '${tx['collector']['name']} will hand you '
+                'P${_netOf(tx)}.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Back')),
           FilledButton(
@@ -171,7 +181,7 @@ class _CurrentScreenState extends State<CurrentScreen> {
       await _transactions.confirm(tx['id']);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Confirmed! eCoins sent. Thank you for recycling!')));
+          content: Text('Confirmed! Thank you for recycling!')));
       _load();
     } catch (e) {
       if (mounted) {
@@ -274,9 +284,26 @@ class _CurrentScreenState extends State<CurrentScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total',
+                const Text('Total'),
+                Text('P${tx['totalAmount']}'),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Service fee (${ApiConfig.systemFeePercent}%)'),
+                Text(
+                    '-P${_feeOf(tx)}'),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("You'll receive",
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('P${tx['totalAmount']}',
+                Text(
+                    'P${_netOf(tx)}',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,

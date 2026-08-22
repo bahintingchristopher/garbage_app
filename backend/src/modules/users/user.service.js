@@ -75,4 +75,23 @@ async function createUser({ name, email, password, contactNumber, address, role 
   });
 }
 
-module.exports = { findByEmail, findActiveById, createUser };
+/// Admin directory: all active collectors with their eCoin balance.
+async function listCollectors() {
+  return User.findAll({
+    where: { role: "COLLECTOR", isActive: true },
+    attributes: ["id", "name", "accountNumber", "contactNumber", "address"],
+    include: [{ model: Wallet, attributes: ["balance"] }],
+    order: [["name", "ASC"]],
+  });
+}
+
+/// Admin directory: all active clients (name / address / contact only).
+async function listClients() {
+  return User.findAll({
+    where: { role: "CLIENT", isActive: true },
+    attributes: ["id", "name", "contactNumber", "address"],
+    order: [["name", "ASC"]],
+  });
+}
+
+module.exports = { findByEmail, findActiveById, createUser, listCollectors, listClients };

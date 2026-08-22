@@ -5,6 +5,8 @@ function formatTransaction(tx) {
     orderId: tx.orderId,
     status: tx.confirmationStatus,
     totalAmount: Number(tx.totalAmount),
+    systemFee: Number(tx.systemFee || 0),
+    netAmount: Math.round((Number(tx.totalAmount) - Number(tx.systemFee || 0)) * 100) / 100,
     photoUrl: tx.photo,
     confirmationDeadline: tx.confirmationDeadline,
     completedAt: tx.completedAt,

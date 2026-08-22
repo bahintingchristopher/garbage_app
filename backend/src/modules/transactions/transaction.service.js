@@ -100,6 +100,9 @@ async function submitWeights(orderId, collectorId, items) {
     };
   });
   total = Math.round(total * 100) / 100;
+  const { systemFeePercent } = require("../../config/environment");
+  const systemFee =
+    Math.round(total * (systemFeePercent / 100) * 100) / 100;
 
   const deadline = new Date(Date.now() + CONFIRMATION_WINDOW_MS);
 
@@ -110,6 +113,7 @@ async function submitWeights(orderId, collectorId, items) {
         clientId: order.clientId,
         collectorId,
         totalAmount: total,
+      systemFee,
         confirmationStatus: "PENDING",
         confirmationDeadline: deadline,
         completedAt: new Date(),
@@ -158,10 +162,10 @@ async function findByOrder(orderId, user) {
   return getFullById(tx.id);
 }
 
-async function confirm(transactionId, clientId) {
+async function confirm(transactionId, userId, { force = false } = {}) {
   const tx = await Transaction.findByPk(transactionId);
   if (!tx) throw new ApiError(404, "Transaction not found");
-  if (Number(tx.clientId) !== Number(clientId)) {
+  if (!force && Number(tx.clientId) !== Number(userId)) {
     throw new ApiError(403, "Only the client of this transaction can confirm it");
   }
   if (tx.confirmationStatus !== "PENDING") {
@@ -177,9 +181,34 @@ async function confirm(transactionId, clientId) {
     );
 
     // Deduct the collector service fee (idempotent, same DB transaction)
-    await walletService.chargeTransactionFee(tx.collectorId, tx.id, t);
+    await walletService.chargeTransactionFee(tx.collectorId, tx.id, tx.totalAmount, t);
 
     return getFullById(tx.id, { transaction: t });
+  });
+}
+
+/// All unconfirmed transactions, oldest deadline first (admin review queue).
+async function listPending() {
+  return Transaction.findAll({
+    where: { confirmationStatus: "PENDING" },
+    include: [
+      {
+        model: TransactionItem,
+        as: "items",
+        include: [{ model: Material, as: "material", attributes: ["name"] }],
+      },
+      {
+        model: require("../users/user.model").User,
+        as: "client",
+        attributes: ["id", "name", "accountNumber", "contactNumber"],
+      },
+      {
+        model: require("../users/user.model").User,
+        as: "collector",
+        attributes: ["id", "name", "accountNumber", "contactNumber"],
+      },
+    ],
+    order: [["confirmationDeadline", "ASC"]],
   });
 }
 
@@ -209,6 +238,7 @@ module.exports = {
   submitWeights,
   addPhoto,
   confirm,
+  listPending,
   listMine,
   getFullById,
   findByOrder,

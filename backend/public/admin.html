@@ -27,6 +27,9 @@
     <button data-tab="support" onclick="show('support')">Support</button>
     <button data-tab="stats" onclick="show('stats')">Stats</button>
     <button data-tab="materials" onclick="show('materials')">Materials</button>
+    <button data-tab="collectors" onclick="show('collectors')">Collectors</button>
+    <button data-tab="clients" onclick="show('clients')">Clients</button>
+    <button data-tab="pending" onclick="show('pending')">Pending</button>
   </nav>
   <main>
     <div id="tab-topups"></div>
@@ -34,6 +37,9 @@
     <div id="tab-support"></div>
     <div id="tab-stats"></div>
     <div id="tab-materials"></div>
+    <div id="tab-collectors"></div>
+    <div id="tab-clients"></div>
+    <div id="tab-pending"></div>
   </main>
 </div>
 
@@ -79,7 +85,7 @@ function enter() {
 function show(tab) {
   currentTab = tab;
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  ['topups','announcements','support','stats','materials'].forEach(t =>
+  ['topups','announcements','support','stats','materials','collectors','clients','pending'].forEach(t =>
     document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none');
   loadTab(tab);
 }
@@ -90,6 +96,9 @@ function loadTab(tab) {
   if (tab === 'support') loadTickets();
   if (tab === 'stats') loadStats();
   if (tab === 'materials') loadMaterials();
+  if (tab === 'collectors') loadCollectors();
+  if (tab === 'clients') loadClients();
+  if (tab === 'pending') loadPending();
 }
 
 /* ---------- Top-ups ---------- */
@@ -315,12 +324,21 @@ async function loadStats(period) {
       <div class="stat"><b>${s.totalTransactions ?? 0}</b>Transactions</div>
       <div class="stat"><b>P${Number(s.totalMoneyProcessed ?? 0).toFixed(2)}</b>Total earnings</div>
       <div class="stat"><b>${Number(s.totalKilogramsRecycled ?? 0).toFixed(1)} kg</b>Waste collected</div>
+      <div class="stat"><b>P${Number(s.systemFeesCollected ?? 0).toFixed(2)}</b>System fees (${s.systemFeePercent ?? 20}%)</div>
     </div>
     <h3 style="margin-top:20px">Orders by status</h3>
     <div class="stats">${orders}</div>
     <h3 style="margin-top:20px">Materials inventory</h3>
     <div class="card"><table>
       <tr><th>Materials</th><th>Collected</th><th>Status</th><th></th></tr>${invRows}
+    </table></div>
+    <h3 style="margin-top:20px">Collector eCoin balances</h3>
+    <div class="card"><table>
+      <tr><th>Collector</th><th>Balance</th></tr>
+      ${(s.collectorBalances||[]).map(b => {
+        const low = b.balance <= 0;
+        return `<tr><td>${esc(b.name)}</td><td style="${low ? 'color:#c62828;font-weight:bold' : ''}">P${Number(b.balance).toFixed(2)}${low ? ' — needs top-up' : ''}</td></tr>`;
+      }).join('') || '<tr><td colspan="2">No collectors yet</td></tr>'}
     </table></div>`;
 }
 function onStatPeriodChange(v) {
@@ -341,6 +359,77 @@ async function disposeMaterial(id, name) {
   try {
     await api(`/materials/${id}/disposals`, { method: 'POST', body: { weightKg: kg } });
     loadStats();
+  } catch (e) { alert(e.message); }
+}
+/* ---------- Directories ---------- */
+async function loadCollectors() {
+  const rows = await api('/users/collectors');
+  document.getElementById('tab-collectors').innerHTML = `
+    <div class="card"><h3>Collectors</h3><table>
+      <tr><th>Name</th><th>Account #</th><th>Contact</th><th>Address</th><th>eCoin balance</th></tr>
+      ${rows.map(c => `<tr>
+        <td>${esc(c.name)}</td>
+        <td>${esc(c.accountNumber || '')}</td>
+        <td>${esc(c.contactNumber || '')}</td>
+        <td>${esc(c.address || '')}</td>
+        <td style="${c.ecoinBalance <= 0 ? 'color:#c62828;font-weight:bold' : ''}">P${Number(c.ecoinBalance).toFixed(2)}${c.ecoinBalance <= 0 ? ' — needs top-up' : ''}</td>
+      </tr>`).join('') || '<tr><td colspan="5">No collectors yet</td></tr>'}
+    </table></div>`;
+}
+
+async function loadClients() {
+  const rows = await api('/users/clients');
+  document.getElementById('tab-clients').innerHTML = `
+    <div class="card"><h3>Clients</h3><table>
+      <tr><th>Name</th><th>Address</th><th>Contact number</th></tr>
+      ${rows.map(c => `<tr>
+        <td>${esc(c.name)}</td>
+        <td>${esc(c.address || '')}</td>
+        <td>${esc(c.contactNumber || '')}</td>
+      </tr>`).join('') || '<tr><td colspan="3">No clients yet</td></tr>'}
+    </table></div>`;
+}
+
+/* ---------- Pending confirmations ---------- */
+const minsLeft = t => Math.max(0, Math.round((new Date(t) - Date.now()) / 60000));
+async function loadPending() {
+  const el = document.getElementById('tab-pending');
+  const rows = await api('/transactions/pending');
+  el.innerHTML = `
+    <div class="card">
+      <h3>Pending confirmations (${rows.length})</h3>
+      <p class="muted">Awaiting client approval. Auto-completes 1 hour after weighing &mdash; or force either outcome here.</p>
+      <button onclick="runAutoComplete()">Auto-complete overdue now</button>
+      <table style="margin-top:10px">
+        <tr><th>ID</th><th>Client</th><th>Collector</th><th>Gross</th><th>Fee</th><th>Net to client</th><th>Deadline</th><th>Photo</th><th>Action</th></tr>
+        ${rows.map(x => `<tr>
+          <td>#${x.id}</td>
+          <td>${esc((x.client || {}).name || '')}</td>
+          <td>${esc((x.collector || {}).name || '')}</td>
+          <td>P${Number(x.totalAmount).toFixed(2)}</td>
+          <td>P${Number(x.systemFee || 0).toFixed(2)}</td>
+          <td>P${Number(x.netAmount ?? x.totalAmount).toFixed(2)}</td>
+          <td>${minsLeft(x.confirmationDeadline)} min left</td>
+          <td>${x.photoUrl ? `<a href="${API}${esc(x.photoUrl)}" target="_blank">view</a>` : '-'}</td>
+          <td><button onclick="confirmTx(${x.id})">Confirm now</button></td>
+        </tr>`).join('') || '<tr><td colspan="9" class="muted">Nothing pending right now.</td></tr>'}
+      </table>
+    </div>`;
+}
+
+async function confirmTx(id) {
+  if (!confirm(`Confirm payment for transaction #${id} on behalf of the client?`)) return;
+  try {
+    await api('/transactions/' + id + '/confirm', { method: 'POST', body: {} });
+    loadPending();
+  } catch (e) { alert(e.message); }
+}
+
+async function runAutoComplete() {
+  try {
+    const r = await api('/admin/run-auto-complete', { method: 'POST', body: {} });
+    if (r && r.message) alert(r.message);
+    loadPending();
   } catch (e) { alert(e.message); }
 }
 /* boot */

@@ -186,6 +186,16 @@ async function listAvailable() {
 }
 
 async function claim(orderId, collectorId) {
+  // Collectors must keep a positive eCoin balance (system fees are charged
+  // from it per completed pickup). No top-up -> no new jobs.
+  const walletService = require("../wallet/wallet.service");
+  const balance = await walletService.getBalance(collectorId);
+  if (balance <= 0) {
+    throw new ApiError(
+      402,
+      "Your eCoin balance is empty. Please top up to accept new pickups."
+    );
+  }
   return sequelize.transaction(async (t) => {
     // Atomic claim: only succeeds if the order is still unclaimed.
     const [updatedRows] = await Order.update(

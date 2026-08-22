@@ -10,6 +10,7 @@ router.use(requireAuth);
 
 router.get("/my", controller.myTransactions);
 router.get("/order/:orderId", controller.getByOrder);
+router.get("/pending", requireRole("ADMIN"), controller.listPending);
 router.get("/:id", controller.getTransaction);
 router.post(
   "/:id/photo",
@@ -17,6 +18,6 @@ router.post(
   upload.single("photo"),
   controller.addPhoto
 );
-router.post("/:id/confirm", requireRole("CLIENT"), controller.confirm);
+router.post("/:id/confirm", requireRole("CLIENT", "ADMIN"), controller.confirm);
 
 module.exports = router;

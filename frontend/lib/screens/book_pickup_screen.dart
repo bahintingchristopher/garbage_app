@@ -4,6 +4,7 @@ import '../services/location_service.dart';
 import '../services/material_service.dart';
 import '../services/order_service.dart';
 import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
 class BookPickupScreen extends StatefulWidget {
   const BookPickupScreen({super.key});
@@ -84,6 +85,9 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
   }
 
   double get _grandTotal => _items.fold(0, (sum, it) => sum + _rowTotal(it));
+
+  double get _netTotal =>
+      _grandTotal - _grandTotal * ApiConfig.systemFeePercent / 100;
 
   void _addItemRow() {
     setState(() {
@@ -335,17 +339,39 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                 margin: const EdgeInsets.only(top: 4),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Estimated total',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(
-                        'P${_grandTotal.toStringAsFixed(2)}',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade800),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Estimated gross'),
+                          Text('P${_grandTotal.toStringAsFixed(2)}'),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Service fee (${ApiConfig.systemFeePercent}%)'),
+                          Text(
+                              '-P${(_grandTotal * ApiConfig.systemFeePercent / 100).toStringAsFixed(2)}'),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Est. payout after fee',
+                              style:
+                                  TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            'P${_netTotal.toStringAsFixed(2)}',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade800),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -63,11 +63,14 @@ async function applyChange(
   );
 }
 
-/// Charges the per-transaction eCoin fee. Idempotent: safe to call twice
-/// for the same transaction id (e.g. confirm vs auto-complete race).
-async function chargeTransactionFee(collectorId, transactionId, t) {
-  const { ecoin } = require("../../config/environment");
-  const fee = ecoin.feePerTransaction;
+/// Charges the system fee (SYSTEM_FEE_PERCENT of the transaction total)
+/// to the collector's eCoin wallet. Idempotent: safe to call twice for the
+/// same transaction id (e.g. confirm vs auto-complete race).
+async function chargeTransactionFee(collectorId, transactionId, totalAmount, t) {
+  const { systemFeePercent } = require("../../config/environment");
+  const fee =
+    Math.round(Number(totalAmount) * (systemFeePercent / 100) * 100) / 100;
+  if (!(fee > 0)) return null;
   const referenceId = `tx-${transactionId}`;
 
   const existing = await WalletTransaction.findOne({
@@ -85,11 +88,10 @@ async function chargeTransactionFee(collectorId, transactionId, t) {
     -fee,
     "TRANSACTION_DEDUCTION",
     referenceId,
-    `Service fee for transaction #${transactionId}`,
+    `${systemFeePercent}% service fee for transaction #${transactionId}`,
     t
   );
 }
-
 module.exports = {
   getWallet,
   getBalance,

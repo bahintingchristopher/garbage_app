@@ -40,7 +40,11 @@ exports.addPhoto = asyncHandler(async (req, res) => {
 });
 
 exports.confirm = asyncHandler(async (req, res) => {
-  const tx = await transactionService.confirm(req.params.id, req.user.id);
+  const tx = await transactionService.confirm(
+    req.params.id,
+    req.user.id,
+    { force: req.user.role === "ADMIN" }
+  );
   res.json({
     success: true,
     message: "Transaction confirmed. Thank you!",
@@ -48,6 +52,10 @@ exports.confirm = asyncHandler(async (req, res) => {
   });
 });
 
+exports.listPending = asyncHandler(async (req, res) => {
+  const rows = await transactionService.listPending();
+  res.json({ success: true, data: formatTransactionList(rows) });
+});
 exports.myTransactions = asyncHandler(async (req, res) => {
   const transactions = await transactionService.listMine(req.user);
   res.json({ success: true, data: formatTransactionList(transactions) });

@@ -27,7 +27,7 @@ async function runAutoComplete() {
       { where: { id: { [Op.in]: expired.map((x) => x.orderId) } }, transaction: t }
     );
     for (const tx of expired) {
-      await walletService.chargeTransactionFee(tx.collectorId, tx.id, t);
+      await walletService.chargeTransactionFee(tx.collectorId, tx.id, tx.totalAmount, t);
     }
   });
 

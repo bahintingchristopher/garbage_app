@@ -6,4 +6,9 @@ class ApiConfig {
 
   /// Server origin for uploaded files (photoUrl values start with /uploads/).
   static String get fileBase => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+
+  /// System fee (% of a transaction's gross amount), charged to the
+  /// collector's eCoin balance on completion. Keep in sync with the
+  /// SYSTEM_FEE_PERCENT value configured in the backend .env.
+  static const int systemFeePercent = 20;
 }

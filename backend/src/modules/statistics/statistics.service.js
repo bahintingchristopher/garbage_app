@@ -183,7 +183,16 @@ async function adminStats(periodInput) {
     ? { createdAt: { [Op.gte]: period.start, [Op.lt]: period.end } }
     : {};
 
-  const [clients, collectors, orderRows, txCount, money, inventory] =
+  const [
+    clients,
+    collectors,
+    orderRows,
+    txCount,
+    money,
+    inventory,
+    [feeAgg],
+    balanceRows,
+  ] =
     await Promise.all([
       User.count({ where: { role: "CLIENT" } }),
       User.count({ where: { role: "COLLECTOR" } }),
@@ -201,6 +210,23 @@ async function adminStats(periodInput) {
         },
       }),
       materialsInventory(period),
+      sequelize.query(
+        `SELECT COALESCE(SUM(amount), 0) AS total FROM wallet_transactions
+         WHERE type = 'TRANSACTION_DEDUCTION' ${period ? "AND created_at >= :start AND created_at < :end" : ""}`,
+        {
+          replacements: period
+            ? { start: period.start.toISOString(), end: period.end.toISOString() }
+            : {},
+          type: sequelize.QueryTypes.SELECT,
+        }
+      ),
+      sequelize.query(
+        `SELECT u.id AS "id", u.name AS "name", w.balance::float8 AS "balance"
+         FROM users u JOIN wallets w ON w.user_id = u.id
+         WHERE u.role = 'COLLECTOR'
+         ORDER BY w.balance ASC`,
+        { type: sequelize.QueryTypes.SELECT }
+      ),
     ]);
 
   const ordersByStatus = {};
@@ -216,6 +242,13 @@ async function adminStats(periodInput) {
     totalMoneyProcessed: Number(money || 0),
     totalKilogramsRecycled: inventory.reduce((s, r) => s + r.collectedKg, 0),
     materialsInventory: inventory,
+    systemFeePercent: require("../../config/environment").systemFeePercent,
+    systemFeesCollected: Number(feeAgg ? feeAgg.total : 0),
+    collectorBalances: balanceRows.map((b) => ({
+      id: Number(b.id),
+      name: b.name,
+      balance: Number(b.balance),
+    })),
   };
 }
 module.exports = { clientStats, collectorStats, adminStats };
