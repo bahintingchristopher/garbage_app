@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/api_config.dart';
 import '../services/auth_service.dart';
@@ -230,6 +231,22 @@ class _CurrentScreenState extends State<CurrentScreen> {
     }
   }
 
+  Future<void> _callClient(Object? number) async {
+    final cleaned = '$number'.replaceAll(RegExp(r'[^\d+]'), '');
+    if (cleaned.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No contact number available.')));
+      return;
+    }
+    try {
+      await launchUrl(Uri(scheme: 'tel', path: cleaned));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Could not open the dialer.')));
+      }
+    }
+  }
   Widget _statusChip(String status) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
@@ -514,13 +531,28 @@ class _CurrentScreenState extends State<CurrentScreen> {
                           Text('Order #${o['id']}',
                               style: const TextStyle(fontWeight: FontWeight.bold)),
                           _statusChip(o['status']),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: 'Chat with client',
-                            icon: const Icon(Icons.chat_bubble_outline,
-                                size: 20),
-                            onPressed: () =>
-                                _openChat(o['client']['id'], o['client']['name']),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                tooltip: 'Chat with client',
+                                icon: const Icon(Icons.chat_bubble_outline,
+                                    size: 20),
+                                onPressed: () =>
+                                    _openChat(o['client']['id'],
+                                        o['client']['name']),
+                              ),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                tooltip: 'Call client',
+                                icon: const Icon(Icons.call_outlined,
+                                    size: 20),
+                                onPressed: () =>
+                                    _callClient(
+                                        o['client']['contactNumber']),
+                              ),
+                            ],
                           ),
                         ],
                       ),

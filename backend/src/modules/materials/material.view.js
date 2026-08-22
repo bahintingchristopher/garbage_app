@@ -1,7 +1,7 @@
 function formatMaterial(material) {
   if (!material) return null;
   return {
-    id: material.id,
+    id: Number(material.id),
     name: material.name,
     pricePerKg: Number(material.pricePerKg),
     description: material.description,

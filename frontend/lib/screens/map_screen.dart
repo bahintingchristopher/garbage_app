@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
@@ -23,6 +24,7 @@ class _MapScreenState extends State<MapScreen> {
   final _locations = LocationService();
   final _orders = OrderService();
   final _chat = ChatService();
+  final _mapController = MapController();
 
   /// Fallback: Quezon City area.
   static const _defaultCenter = LatLng(14.6407, 121.0018);
@@ -120,7 +122,47 @@ class _MapScreenState extends State<MapScreen> {
     return _defaultCenter;
   }
 
+  // ---------- Zoom controls ----------
+
+  void _zoomBy(double delta) {
+    final camera = _mapController.camera;
+    final newZoom = (camera.zoom + delta).clamp(3.0, 19.0);
+    _mapController.move(camera.center, newZoom);
+  }
+
+  Widget _zoomButton(IconData icon, VoidCallback onTap) => Material(
+        color: Colors.white,
+        elevation: 2,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(icon, size: 26, color: Colors.grey.shade800),
+          ),
+        ),
+      );
+
   // ---------- Bottom sheets ----------
+
+  Future<void> _callClient(Object? number) async {
+    final cleaned = '$number'.replaceAll(RegExp(r'[^\d+]'), '');
+    if (cleaned.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No contact number available.')));
+      return;
+    }
+    try {
+      await launchUrl(Uri(scheme: 'tel', path: cleaned));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Could not open the dialer.')));
+      }
+    }
+  }
 
   void _showClientSheet(Map o) {
     showModalBottomSheet(
@@ -181,11 +223,25 @@ class _MapScreenState extends State<MapScreen> {
                             size: 16, color: Colors.green),
                         const SizedBox(width: 6),
                         Expanded(
-                            child: Text('${it['material'] ?? 'Material'}',
+                            child: Text(
+                                '${it['material'] ?? 'Material'} (P${it['declaredPricePerKg']}/kg)',
                                 overflow: TextOverflow.ellipsis)),
-                        Text('~${it['estimatedKg']} kg',
-                            style: TextStyle(color: Colors.grey.shade600)),
+                        Text('~${it['estimatedKg']} kg = P${it['subtotal']}',
+                            style: TextStyle(color: Colors.grey.shade600))
                       ])),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Estimated total',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        'P${(o['items'] as List).fold<double>(0, (s, it) => s + ((it['subtotal'] as num?) ?? 0).toDouble()).toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
               ],
               const SizedBox(height: 16),
               Row(
@@ -200,33 +256,42 @@ class _MapScreenState extends State<MapScreen> {
                       label: const Text('Chat'),
                     ),
                   ),
-                  if ('${o['status']}' == 'BOOKED') ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () async {
-                          try {
-                            await _orders.claim(o['orderId']);
-                            if (!ctx.mounted) return;
-                            Navigator.pop(ctx);
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(
-                                    'You claimed order #${o['orderId']}!')));
-                            _load();
-                          } catch (e) {
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(SnackBar(content: Text('$e')));
-                          }
-                        },
-                        icon: const Icon(Icons.local_shipping),
-                        label: const Text('Accept'),
-                      ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => _callClient(o['client']['contactNumber']),
+                      icon: const Icon(Icons.call_outlined),
+                      label: const Text('Call'),
                     ),
-                  ],
+                  ),
                 ],
               ),
+              if ('${o['status']}' == 'BOOKED') ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      try {
+                        await _orders.claim(o['orderId']);
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(
+                                'You claimed order #${o['orderId']}!')));
+                        _load();
+                      } catch (e) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    },
+                    icon: const Icon(Icons.local_shipping),
+                    label: const Text('Accept pickup'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -439,16 +504,34 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
           Expanded(
-            child: FlutterMap(
-              options: MapOptions(initialCenter: _center, initialZoom: 14),
+            child: Stack(
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.garbageapp.app',
+                FlutterMap(
+                  mapController: _mapController,
+                  options:
+                      MapOptions(initialCenter: _center, initialZoom: 14),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.garbageapp.app',
+                    ),
+                    MarkerLayer(markers: _markers),
+                    const SimpleAttributionWidget(
+                      source: Text('OpenStreetMap contributors'),
+                    ),
+                  ],
                 ),
-                MarkerLayer(markers: _markers),
-                const SimpleAttributionWidget(
-                  source: Text('OpenStreetMap contributors'),
+                Positioned(
+                  right: 12,
+                  bottom: 20,
+                  child: Column(
+                    children: [
+                      _zoomButton(Icons.add, () => _zoomBy(1)),
+                      const SizedBox(height: 8),
+                      _zoomButton(Icons.remove, () => _zoomBy(-1)),
+                    ],
+                  ),
                 ),
               ],
             ),

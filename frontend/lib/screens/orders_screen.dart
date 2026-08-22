@@ -68,6 +68,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
+  /// One-line summary of the client's declared materials + estimated total.
+  String _estimateLine(Map o) {
+    final items = (o['declaredItems'] as List?) ?? [];
+    if (items.isEmpty) return '';
+    final est = items.fold<double>(
+        0, (s, d) => s + ((d['subtotal'] as num?) ?? 0).toDouble());
+    final names = items
+        .map((d) => '${d['material']} ~${d['estimatedKg']}kg')
+        .join(', ');
+    return '$names - est. P${est.toStringAsFixed(2)}';
+  }
+
   List<dynamic> get _filtered {
     if (_filter == 'ACTIVE') return _ordersList.where((o) => isActiveStatus(o['status'])).toList();
     if (_filter == 'DONE') return _ordersList.where((o) => !isActiveStatus(o['status'])).toList();
@@ -161,6 +173,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                               maxLines: 1, overflow: TextOverflow.ellipsis),
                                           Text('${o['scheduledDate']} - ${o['timeSlot']}'),
                                           if (other != null) Text(other['name']),
+                                          if (_estimateLine(o).isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _estimateLine(o),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                       trailing: (o['collector'] == null &&

@@ -27,6 +27,16 @@ function formatOrder(order) {
     acceptedAt: order.acceptedAt,
     completedAt: order.completedAt,
     createdAt: order.createdAt,
+    // Booking-time estimate lines (client-declared materials + snapshot price).
+    declaredItems: (order.declaredItems || []).map((di) => ({
+      materialId: di.materialId,
+      material: di.material ? di.material.name : null,
+      estimatedKg: Number(di.estimatedKg),
+      declaredPricePerKg: Number(di.declaredPricePerKg),
+      subtotal:
+        Math.round(Number(di.estimatedKg) * Number(di.declaredPricePerKg) * 100) /
+        100,
+    })),
   };
 }
 

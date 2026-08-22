@@ -37,9 +37,32 @@ class _WeighingScreenState extends State<WeighingScreen> {
     _loadMaterials();
   }
 
+  bool _prefilled = false;
+
+  /// Prefill rows from the client's declared estimate when available.
+  void _prefillFromDeclaration() {
+    final declared = widget.order['declaredItems'];
+    if (declared is! List || declared.isEmpty) return;
+    final rows = <_WeightRow>[];
+    for (final d in declared) {
+      final r = _WeightRow();
+      r.materialId = '${d['materialId']}';
+      r.weightCtrl.text = '${d['estimatedKg']}';
+      rows.add(r);
+    }
+    for (final r in _rows) {
+      r.dispose();
+    }
+    _rows
+      ..clear()
+      ..addAll(rows);
+    _prefilled = true;
+  }
+
   Future<void> _loadMaterials() async {
     try {
       _materialList = await _materials.listActive();
+      _prefillFromDeclaration();
     } catch (e) {
       _error = e.toString();
     }
@@ -163,6 +186,14 @@ class _WeighingScreenState extends State<WeighingScreen> {
                       'Enter the weight of each material collected.',
                       style: TextStyle(color: Colors.grey),
                     ),
+                    if (_prefilled)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          "Prefilled from the client's declared estimate - adjust to actual weights.",
+                          style: TextStyle(fontSize: 12, color: Colors.green),
+                        ),
+                      ),
                     const SizedBox(height: 12),
                     for (var i = 0; i < _rows.length; i++) _buildRow(i),
                     OutlinedButton.icon(

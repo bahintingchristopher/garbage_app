@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../services/location_service.dart';
 import '../services/material_service.dart';
@@ -34,6 +34,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     _loadSavedAddress();
     _loadMaterials();
     _date = DateTime.now().add(const Duration(days: 1));
+    _addItemRow();
   }
 
   Future<void> _loadSavedAddress() async {
@@ -64,11 +65,32 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     } catch (_) {}
   }
 
+  double _priceOfMaterial(String? id) {
+    for (final m in _materialList) {
+      if ('${m['id']}' == '$id') {
+        return (m['pricePerKg'] as num?)?.toDouble() ?? 0;
+      }
+    }
+    return 0;
+  }
+
+  double _rowTotal(Map<String, dynamic> it) {
+    final p =
+        double.tryParse((it['price'] as TextEditingController).text.trim()) ??
+            0;
+    final k =
+        double.tryParse((it['kg'] as TextEditingController).text.trim()) ?? 0;
+    return p * k;
+  }
+
+  double get _grandTotal => _items.fold(0, (sum, it) => sum + _rowTotal(it));
+
   void _addItemRow() {
     setState(() {
       _items.add({
         'materialId': null,
         'kg': TextEditingController(),
+        'price': TextEditingController(),
       });
     });
   }
@@ -76,6 +98,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
   void _removeItemRow(int index) {
     setState(() {
       (_items[index]['kg'] as TextEditingController).dispose();
+      (_items[index]['price'] as TextEditingController).dispose();
       _items.removeAt(index);
     });
   }
@@ -83,12 +106,24 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
   List<Map<String, dynamic>>? _collectItems() {
     final rows = <Map<String, dynamic>>[];
     for (final it in _items) {
-      final materialId = it['materialId'] as int?;
+      final materialId = int.tryParse('${it['materialId']}');
       final kgText = (it['kg'] as TextEditingController).text.trim();
-      if (materialId == null && kgText.isEmpty) continue;
+      final priceText = (it['price'] as TextEditingController).text.trim();
+      if (materialId == null && kgText.isEmpty && priceText.isEmpty) continue;
       final kg = double.tryParse(kgText);
-      if (materialId == null || kg == null || kg <= 0) return null;
-      rows.add({'materialId': materialId, 'estimatedKg': kg});
+      final price = double.tryParse(priceText);
+      if (materialId == null ||
+          kg == null ||
+          kg <= 0 ||
+          price == null ||
+          price <= 0) {
+        return null;
+      }
+      rows.add({
+        'materialId': materialId,
+        'estimatedKg': kg,
+        'declaredPricePerKg': price,
+      });
     }
     return rows;
   }
@@ -96,7 +131,11 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
     if (!_formKey.currentState!.validate()) return;
     final items = _collectItems();
     if (items == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fill in every material row (pick a material and a weight above 0), or remove the row.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fill in every material row - pick a material and enter an estimated weight above 0.')));
+      return;
+    }
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add at least one expected material.')));
       return;
     }
     setState(() => _saving = true);
@@ -117,6 +156,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
         scheduledDate: _dateLabel,
         timeSlot: _slot,
         notes: _notes.text,
+        items: items,
         latitude: lat,
         longitude: lng,
       );
@@ -178,61 +218,109 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
                   .toList(),
             ),
             const SizedBox(height: 16),
-            Text('Expected materials (optional)',
+            Text('Expected materials:',
                 style: Theme.of(context).textTheme.titleSmall),
             const Text(
-              'Helps collectors know what to expect.',
+              'Unit prices use current rates; totals are estimates.',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 8),
             for (var i = 0; i < _items.length; i++)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        initialValue: _items[i]['materialId'] as int?,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Material',
-                          border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        ),
-                        items: _materialList
-                            .map((m) => DropdownMenuItem<int>(
-                                  value: m['id'] as int,
-                                  child: Text(
-                                    (m['name'] ?? '').toString(),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ))
-                            .toList(),
-                        onChanged: (v) =>
-                            setState(() => _items[i]['materialId'] = v),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue:
+                                  _items[i]['materialId'] as String?,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Material type',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
+                              ),
+                              items: _materialList
+                                  .map((m) => DropdownMenuItem<String>(
+                                        value: '${m['id']}',
+                                        child: Text(
+                                          (m['name'] ?? '').toString(),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) => setState(() {
+                                _items[i]['materialId'] = v;
+                                (_items[i]['price']
+                                        as TextEditingController)
+                                    .text = _priceOfMaterial(v)
+                                        .toStringAsFixed(2);
+                              }),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline),
+                            onPressed: () => _removeItemRow(i),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 90,
-                      child: TextFormField(
-                        controller: _items[i]['kg'] as TextEditingController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Kg',
-                          border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 110,
+                            child: TextFormField(
+                              controller: _items[i]['price']
+                                  as TextEditingController,
+                              readOnly: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Unit price',
+                                suffixText: '/kg',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 90,
+                            child: TextFormField(
+                              controller:
+                                  _items[i]['kg'] as TextEditingController,
+                              keyboardType: const TextInputType
+                                  .numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Est. kg',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'P${_rowTotal(_items[i]).toStringAsFixed(2)}',
+                              textAlign: TextAlign.end,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: () => _removeItemRow(i),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             TextButton.icon(
@@ -240,7 +328,30 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
               icon: const Icon(Icons.add),
               label: const Text('Add material'),
             ),
-            const SizedBox(height: 16),            TextFormField(
+            if (_items.isNotEmpty)
+              Card(
+                color: Colors.green.shade50,
+                margin: const EdgeInsets.only(top: 4),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Estimated total',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        'P${_grandTotal.toStringAsFixed(2)}',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade800),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            TextFormField(
               controller: _notes,
               maxLines: 3,
               maxLength: 500,
@@ -272,6 +383,7 @@ class _BookPickupScreenState extends State<BookPickupScreen> {
   void dispose() {
     for (final it in _items) {
       (it['kg'] as TextEditingController).dispose();
+      (it['price'] as TextEditingController).dispose();
     }
     _address.dispose();
     _notes.dispose();

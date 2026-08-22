@@ -114,6 +114,13 @@ const OrderItem = sequelize.define(
       allowNull: false,
       validate: { min: 0.01 },
     },
+    // Snapshot of the material price (P/kg) at booking time - estimate only.
+    declaredPricePerKg: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0,
+      validate: { min: 0 },
+    },
   },
   {
     tableName: "order_items",

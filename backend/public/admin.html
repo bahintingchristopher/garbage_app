@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -49,7 +49,7 @@
 
 <div id="app" style="display:none">
   <header>
-    <h1>♻️ GarbageApp Admin Console</h1>
+    <h1>GarbageApp Admin Dashboard</h1>
     <button class="btn grey" onclick="logout()">Logout</button>
   </header>
   <nav>
@@ -102,7 +102,8 @@ async function login() {
 function logout() { localStorage.removeItem('adminToken'); location.reload(); }
 
 function enter() {
-  login.style.display = 'none'; app.style.display = 'block';
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
   show(currentTab);
 }
 
@@ -162,18 +163,18 @@ async function loadDisputes() {
   const rows = await api('/transactions/disputed');
   el.innerHTML = `<div class="card"><h3>Disputed transactions (${rows.length})</h3>
     <p class="muted">Release = collector gets paid (normal flow, fee charged). Cancel = order cancelled, no payment.</p></div>` +
-  (rows.length === 0 ? '<div class="card muted">No disputes. 🎉</div>' : rows.map(t => `
+  (rows.length === 0 ? '<div class="card muted">No disputes. ??</div>' : rows.map(t => `
     <div class="card">
-      <b>Transaction #${t.id}</b> · Order #${t.orderId} · Total <b>P${Number(t.totalAmount).toFixed(2)}</b>
+      <b>Transaction #${t.id}</b> � Order #${t.orderId} � Total <b>P${Number(t.totalAmount).toFixed(2)}</b>
       <span class="pill DISPUTED">${t.confirmationStatus}</span><br>
-      <span class="muted">Client: ${esc(t.client?.name)} · Collector: ${esc(t.collector?.name)} · Disputed ${when(t.createdAt)}</span>
+      <span class="muted">Client: ${esc(t.client?.name)} � Collector: ${esc(t.collector?.name)} � Disputed ${when(t.createdAt)}</span>
       <table style="margin-top:10px"><tr><th>Material</th><th>Kg</th><th>P/kg</th><th>Subtotal</th></tr>
       ${(t.items||[]).map(i => `<tr><td>${esc(i.material?.name)}</td><td>${Number(i.weightKg)} kg</td><td>P${Number(i.pricePerKg)}</td><td>P${Number(i.subtotal).toFixed(2)}</td></tr>`).join('')}
       </table>
-      ${t.photoPath ? `<p><a href="${location.origin}/${esc(t.photoPath)}" target="_blank">📷 View proof photo</a></p>` : ''}
+      ${t.photoPath ? `<p><a href="${location.origin}/${esc(t.photoPath)}" target="_blank">?? View proof photo</a></p>` : ''}
       <p>
-        <button class="btn green" onclick="resolve(${t.id},'RELEASE')">✔ Release payment to collector</button>
-        <button class="btn red" onclick="resolve(${t.id},'CANCEL')">✖ Cancel order (no payment)</button>
+        <button class="btn green" onclick="resolve(${t.id},'RELEASE')">? Release payment to collector</button>
+        <button class="btn red" onclick="resolve(${t.id},'CANCEL')">? Cancel order (no payment)</button>
       </p>
     </div>`).join(''));
 }
@@ -197,7 +198,7 @@ async function loadAnnouncements() {
     <div class="card"><h3>All announcements</h3><table>
       <tr><th>Title</th><th>Audience</th><th>Active</th><th>Created</th><th></th></tr>
       ${rows.map(a => `<tr><td><b>${esc(a.title)}</b><br><span class="muted">${esc(a.content)}</span></td>
-        <td>${a.audience}</td><td>${a.isActive ? '✅' : '⛔'}</td><td>${when(a.createdAt)}</td>
+        <td>${a.audience}</td><td>${a.isActive ? '?' : '?'}</td><td>${when(a.createdAt)}</td>
         <td>${a.isActive ? `<button class="btn red" onclick="deactivateAnnouncement(${a.id})">Deactivate</button>` : ''}</td></tr>`).join('') || '<tr><td colspan=5 class=muted>None yet.</td></tr>'}
     </table></div>`;
 }
@@ -235,7 +236,7 @@ async function renderTicket(el) {
   const t = await api('/support/' + openTicketId);
   el.innerHTML = `
     <div class="card">
-      <button class="btn grey" onclick="openTicketId=null;loadTickets()">← Back</button>
+      <button class="btn grey" onclick="openTicketId=null;loadTickets()">? Back</button>
       <h3>#${t.id} ${esc(t.subject)} <span class="pill ${t.status}">${t.status}</span></h3>
       <div style="display:flex;flex-direction:column">
         ${(t.messages||[]).map(m => `<div class="msg ${m.sender?.role === 'ADMIN' ? 'admin' : 'user'}">

@@ -64,7 +64,9 @@ async function book(clientId, { pickupAddress, latitude, longitude, scheduledDat
     throw new ApiError(400, `timeSlot must be one of: ${TIME_SLOTS.join(", ")}`);
   }
 
-  // Optional declared materials: [{ materialId, estimatedKg }]
+  // Optional declared materials: [{ materialId, estimatedKg, declaredPricePerKg? }]
+  // declaredPricePerKg is a booking-time estimate; falls back to the
+  // material's current admin-set price when the client does not send one.
   let itemRows = [];
   if (items != null) {
     if (!Array.isArray(items) || items.length === 0 || items.length > 10) {
@@ -74,21 +76,36 @@ async function book(clientId, { pickupAddress, latitude, longitude, scheduledDat
     for (const it of items) {
       const materialId = Number(it && it.materialId);
       const kg = Number(it && it.estimatedKg);
+      let price = null;
+      if (it && it.declaredPricePerKg != null) {
+        price = Number(it.declaredPricePerKg);
+        if (Number.isNaN(price) || price < 0) {
+          throw new ApiError(400, "declaredPricePerKg must be 0 or more");
+        }
+      }
       if (!Number.isInteger(materialId)) {
         throw new ApiError(400, "Each item needs a valid materialId");
       }
       if (!kg || kg <= 0) {
         throw new ApiError(400, "estimatedKg must be above 0");
       }
-      merged.set(materialId, (merged.get(materialId) || 0) + kg);
+      merged.set(materialId, {
+        kg: (merged.get(materialId)?.kg || 0) + kg,
+        price: price ?? merged.get(materialId)?.price ?? null,
+      });
     }
     const materials = await Material.findAll({ where: { id: [...merged.keys()] } });
     if (materials.length !== merged.size) {
       throw new ApiError(400, "One or more materials do not exist");
     }
-    itemRows = [...merged.entries()].map(([mid, kg]) => ({
+    const priceMap = new Map(
+      materials.map((m) => [Number(m.id), Number(m.pricePerKg) || 0])
+    );
+    itemRows = [...merged.entries()].map(([mid, row]) => ({
       materialId: mid,
-      estimatedKg: Math.round(kg * 100) / 100,
+      estimatedKg: Math.round(row.kg * 100) / 100,
+      declaredPricePerKg:
+        Math.round((row.price ?? priceMap.get(mid) ?? 0) * 100) / 100,
     }));
   }
 
@@ -116,6 +133,11 @@ async function book(clientId, { pickupAddress, latitude, longitude, scheduledDat
 }
 
 const INCLUDE_FULL = [
+  {
+    model: OrderItem,
+    as: "declaredItems",
+    include: [{ model: Material, as: "material", attributes: ["name"] }],
+  },
   {
     model: User,
     as: "client",

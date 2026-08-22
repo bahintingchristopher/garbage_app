@@ -40,6 +40,10 @@ exports.activeLocations = asyncHandler(async (req, res) => {
       items: (o.declaredItems || []).map((di) => ({
         material: di.material ? di.material.name : null,
         estimatedKg: Number(di.estimatedKg),
+        declaredPricePerKg: Number(di.declaredPricePerKg),
+        subtotal:
+          Math.round(Number(di.estimatedKg) * Number(di.declaredPricePerKg) * 100) /
+          100,
       })),
     })),
   });
