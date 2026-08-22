@@ -1,5 +1,6 @@
 const ApiError = require("../../utils/ApiError");
 const Material = require("./material.model");
+const MaterialDisposal = require("./material_disposal.model");
 
 async function listActive() {
   return Material.findAll({ where: { isActive: true }, order: [["name", "ASC"]] });
@@ -34,9 +35,20 @@ async function create({ name, pricePerKg, description }) {
   });
 }
 
-async function updatePrice(id, { pricePerKg, description, isActive }) {
+async function updatePrice(id, { name, pricePerKg, description, isActive }) {
   const material = await getById(id);
 
+  if (name !== undefined && name !== null) {
+    const newName = String(name).trim().toUpperCase();
+    if (!newName) throw new ApiError(400, "name cannot be empty");
+    if (newName !== material.name) {
+      const exists = await Material.findOne({ where: { name: newName } });
+      if (exists) {
+        throw new ApiError(409, "A material with this name already exists");
+      }
+      material.name = newName;
+    }
+  }
   if (pricePerKg !== undefined && pricePerKg !== null) {
     if (Number(pricePerKg) < 0 || isNaN(Number(pricePerKg))) {
       throw new ApiError(400, "pricePerKg must be a positive number");
@@ -50,4 +62,25 @@ async function updatePrice(id, { pricePerKg, description, isActive }) {
   return material;
 }
 
-module.exports = { listActive, listAll, getById, create, updatePrice };
+async function recordDisposal(id, { weightKg, notes } = {}, adminId) {
+  const material = await getById(id);
+  const kg = Number(weightKg);
+  if (isNaN(kg) || kg <= 0) {
+    throw new ApiError(400, "weightKg must be a positive number");
+  }
+  return MaterialDisposal.create({
+    materialId: material.id,
+    weightKg: kg,
+    notes: notes || null,
+    disposedBy: adminId || null,
+  });
+}
+
+module.exports = {
+  listActive,
+  listAll,
+  getById,
+  create,
+  updatePrice,
+  recordDisposal,
+};

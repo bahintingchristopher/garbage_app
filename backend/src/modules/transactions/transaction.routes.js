@@ -10,7 +10,6 @@ router.use(requireAuth);
 
 router.get("/my", controller.myTransactions);
 router.get("/order/:orderId", controller.getByOrder);
-router.get("/disputed", requireRole("ADMIN"), controller.listDisputed);
 router.get("/:id", controller.getTransaction);
 router.post(
   "/:id/photo",
@@ -18,11 +17,6 @@ router.post(
   upload.single("photo"),
   controller.addPhoto
 );
-router.post("/:id/resolve", requireRole("ADMIN"), controller.resolve);
 router.post("/:id/confirm", requireRole("CLIENT"), controller.confirm);
-router.post("/:id/dispute", requireRole("CLIENT"), controller.dispute);
 
 module.exports = router;
-
-
-

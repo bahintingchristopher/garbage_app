@@ -180,37 +180,6 @@ class _CurrentScreenState extends State<CurrentScreen> {
     }
   }
 
-  Future<void> _disputePayment() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Dispute this transaction?'),
-        content: const Text(
-            'Our admin team will review the weights and photo. Continue?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('File dispute'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || _pendingTx == null) return;
-    try {
-      await _transactions.dispute(_pendingTx!['id']);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Dispute filed. Admin will review it.')));
-      _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    }
-  }
-
   /// Opens (or creates) the conversation with the other party of an order.
   Future<void> _openChat(Object otherUserId, String otherName) async {
     try {
@@ -330,28 +299,15 @@ class _CurrentScreenState extends State<CurrentScreen> {
                 ),
               ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style:
-                        OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                    onPressed: _disputePayment,
-                    icon: const Icon(Icons.flag_outlined),
-                    label: const Text('Dispute'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: Colors.green),
-                    onPressed: _confirmPayment,
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Confirm & Pay'),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style:
+                    FilledButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: _confirmPayment,
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('Confirm & Pay'),
+              ),
             ),
           ],
         ),

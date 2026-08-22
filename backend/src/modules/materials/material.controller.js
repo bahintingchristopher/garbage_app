@@ -36,3 +36,16 @@ exports.updateMaterial = asyncHandler(async (req, res) => {
     data: formatMaterial(material),
   });
 });
+
+exports.recordDisposal = asyncHandler(async (req, res) => {
+  const disposal = await materialService.recordDisposal(
+    req.params.id,
+    req.body,
+    req.user.id
+  );
+  res.status(201).json({
+    success: true,
+    message: "Disposal recorded",
+    data: disposal,
+  });
+});

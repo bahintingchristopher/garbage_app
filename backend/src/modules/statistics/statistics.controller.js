@@ -12,5 +12,5 @@ exports.myStats = asyncHandler(async (req, res) => {
 });
 
 exports.adminStats = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await service.adminStats() });
+  res.json({ success: true, data: await service.adminStats(req.query.period) });
 });

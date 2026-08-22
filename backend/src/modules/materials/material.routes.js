@@ -11,5 +11,6 @@ router.get("/", controller.listMaterials);
 router.get("/:id", controller.getMaterial);
 router.post("/", requireRole("ADMIN"), controller.createMaterial);
 router.patch("/:id", requireRole("ADMIN"), controller.updateMaterial);
+router.post("/:id/disposals", requireRole("ADMIN"), controller.recordDisposal);
 
 module.exports = router;

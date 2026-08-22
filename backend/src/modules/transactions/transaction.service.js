@@ -12,6 +12,7 @@ const walletService = require("../wallet/wallet.service");
 const CONFIRMATION_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 async function getFullById(id, opts = {}) {
+  if (Number.isNaN(Number(id))) throw new ApiError(404, "Transaction not found");
   const tx = await Transaction.findByPk(id, {
     ...opts,
     include: [
@@ -182,90 +183,6 @@ async function confirm(transactionId, clientId) {
   });
 }
 
-async function dispute(transactionId, clientId) {
-  const tx = await Transaction.findByPk(transactionId);
-  if (!tx) throw new ApiError(404, "Transaction not found");
-  if (Number(tx.clientId) !== Number(clientId)) {
-    throw new ApiError(403, "Only the client of this transaction can dispute it");
-  }
-  if (tx.confirmationStatus !== "PENDING") {
-    throw new ApiError(400, `Transaction is already ${tx.confirmationStatus}`);
-  }
-
-  return sequelize.transaction(async (t) => {
-    tx.confirmationStatus = "DISPUTED";
-    await tx.save({ transaction: t });
-    await Order.update(
-      { status: "DISPUTED" },
-      { where: { id: tx.orderId }, transaction: t }
-    );
-    return getFullById(tx.id, { transaction: t });
-  });
-}
-
-/// ADMIN: every disputed transaction, fully populated.
-async function listDisputed() {
-  return Transaction.findAll({
-    where: { confirmationStatus: "DISPUTED" },
-    include: [
-      {
-        model: TransactionItem,
-        as: "items",
-        include: [{ model: Material, as: "material", attributes: ["name"] }],
-      },
-      {
-        model: require("../users/user.model").User,
-        as: "client",
-        attributes: ["id", "name", "accountNumber", "contactNumber"],
-      },
-      {
-        model: require("../users/user.model").User,
-        as: "collector",
-        attributes: ["id", "name", "accountNumber", "contactNumber"],
-      },
-      {
-        model: Order,
-        as: "Order",
-      },
-    ],
-    order: [["createdAt", "DESC"]],
-  });
-}
-
-/// ADMIN resolves a dispute.
-/// RELEASE -> same effect as client confirm (collector paid, fee charged).
-/// CANCEL  -> order cancelled, no payment moves; audit fields recorded.
-async function resolve(transactionId, adminId, outcome) {
-  if (!["RELEASE", "CANCEL"].includes(outcome)) {
-    throw new ApiError(400, 'outcome must be "RELEASE" or "CANCEL"');
-  }
-  const tx = await Transaction.findByPk(transactionId);
-  if (!tx) throw new ApiError(404, "Transaction not found");
-  if (tx.confirmationStatus !== "DISPUTED") {
-    throw new ApiError(400, `Transaction is ${tx.confirmationStatus}, not DISPUTED`);
-  }
-
-  return sequelize.transaction(async (t) => {
-    if (outcome === "RELEASE") {
-      tx.confirmationStatus = "CONFIRMED";
-      await tx.save({ transaction: t });
-      await Order.update(
-        { status: "CONFIRMED" },
-        { where: { id: tx.orderId }, transaction: t }
-      );
-      await walletService.chargeTransactionFee(tx.collectorId, tx.id, t);
-    } else {
-      tx.resolvedBy = adminId;
-      tx.resolvedAt = new Date();
-      await tx.save({ transaction: t });
-      await Order.update(
-        { status: "CANCELLED" },
-        { where: { id: tx.orderId }, transaction: t }
-      );
-    }
-    return getFullById(tx.id, { transaction: t });
-  });
-}
 async function listMine(user) {
   const where =
     user.role === "CLIENT"
@@ -292,10 +209,7 @@ module.exports = {
   submitWeights,
   addPhoto,
   confirm,
-  dispute,
   listMine,
-  listDisputed,
-  resolve,
   getFullById,
   findByOrder,
 };

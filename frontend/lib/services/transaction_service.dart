@@ -63,19 +63,4 @@ class TransactionService {
       throw ApiException(json['message'] ?? 'Confirm failed');
     }
   }
-
-  /// Client disputes the weights -> admin reviews.
-  Future<void> dispute(Object transactionId) async {
-    final token = await _auth.getToken();
-    final res = await http
-        .post(
-          Uri.parse('${ApiConfig.baseUrl}/transactions/$transactionId/dispute'),
-          headers: _headers(token: token),
-        )
-        .timeout(const Duration(seconds: 10));
-    if (res.statusCode != 200) {
-      final json = jsonDecode(res.body);
-      throw ApiException(json['message'] ?? 'Dispute failed');
-    }
-  }
 }

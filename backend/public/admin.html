@@ -23,17 +23,17 @@
   </header>
   <nav>
     <button data-tab="topups" class="active" onclick="show('topups')">Top-ups</button>
-    <button data-tab="disputes" onclick="show('disputes')">Disputes</button>
-    <button data-tab="announcements" onclick="show('announcements')">Announcements</button>
+        <button data-tab="announcements" onclick="show('announcements')">Announcements</button>
     <button data-tab="support" onclick="show('support')">Support</button>
     <button data-tab="stats" onclick="show('stats')">Stats</button>
+    <button data-tab="materials" onclick="show('materials')">Materials</button>
   </nav>
   <main>
     <div id="tab-topups"></div>
-    <div id="tab-disputes"></div>
-    <div id="tab-announcements"></div>
+        <div id="tab-announcements"></div>
     <div id="tab-support"></div>
     <div id="tab-stats"></div>
+    <div id="tab-materials"></div>
   </main>
 </div>
 
@@ -79,17 +79,17 @@ function enter() {
 function show(tab) {
   currentTab = tab;
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  ['topups','disputes','announcements','support','stats'].forEach(t =>
+  ['topups','announcements','support','stats','materials'].forEach(t =>
     document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none');
   loadTab(tab);
 }
 
 function loadTab(tab) {
   if (tab === 'topups') loadTopups();
-  if (tab === 'disputes') loadDisputes();
   if (tab === 'announcements') loadAnnouncements();
   if (tab === 'support') loadTickets();
   if (tab === 'stats') loadStats();
+  if (tab === 'materials') loadMaterials();
 }
 
 /* ---------- Top-ups ---------- */
@@ -124,33 +124,6 @@ async function decideTopup(id, action) {
     const d = await api(`/topups/${id}/${action}`, { method:'POST', body });
     alert(d && d.message ? d.message : 'Done'); loadTopups();
   } catch (e) { alert(e.message); }
-}
-
-/* ---------- Disputes ---------- */
-async function loadDisputes() {
-  const el = document.getElementById('tab-disputes');
-  const rows = await api('/transactions/disputed');
-  el.innerHTML = `<div class="card"><h3>Disputed transactions (${rows.length})</h3>
-    <p class="muted">Release = collector gets paid (normal flow, fee charged). Cancel = order cancelled, no payment.</p></div>` +
-  (rows.length === 0 ? '<div class="card muted">No disputes. ??</div>' : rows.map(t => `
-    <div class="card">
-      <b>Transaction #${t.id}</b> � Order #${t.orderId} � Total <b>P${Number(t.totalAmount).toFixed(2)}</b>
-      <span class="pill DISPUTED">${t.confirmationStatus}</span><br>
-      <span class="muted">Client: ${esc(t.client?.name)} � Collector: ${esc(t.collector?.name)} � Disputed ${when(t.createdAt)}</span>
-      <table style="margin-top:10px"><tr><th>Material</th><th>Kg</th><th>P/kg</th><th>Subtotal</th></tr>
-      ${(t.items||[]).map(i => `<tr><td>${esc(i.material?.name)}</td><td>${Number(i.weightKg)} kg</td><td>P${Number(i.pricePerKg)}</td><td>P${Number(i.subtotal).toFixed(2)}</td></tr>`).join('')}
-      </table>
-      ${t.photoPath ? `<p><a href="${location.origin}/${esc(t.photoPath)}" target="_blank">?? View proof photo</a></p>` : ''}
-      <p>
-        <button class="btn green" onclick="resolve(${t.id},'RELEASE')">? Release payment to collector</button>
-        <button class="btn red" onclick="resolve(${t.id},'CANCEL')">? Cancel order (no payment)</button>
-      </p>
-    </div>`).join(''));
-}
-async function resolve(id, outcome) {
-  if (!confirm(outcome === 'RELEASE' ? 'Release payment to the collector?' : 'Cancel this order with no payment?')) return;
-  try { await api(`/transactions/${id}/resolve`, { method:'POST', body:{ outcome } }); loadDisputes(); }
-  catch (e) { alert(e.message); }
 }
 
 /* ---------- Announcements ---------- */
@@ -226,7 +199,7 @@ async function renderTicket(el) {
   const t = await api('/support/' + openTicketId);
   el.innerHTML = `
     <div class="card">
-      <button class="btn grey" onclick="openTicketId=null;loadTickets()">? Back</button>
+      <button class="btn grey" onclick="openTicketId=null;loadTickets()">Back</button>
       <h3>#${t.id} ${esc(t.subject)} <span class="pill ${t.status}">${t.status}</span></h3>
       <div style="display:flex;flex-direction:column">
         ${(t.messages||[]).map(m => `<div class="msg ${m.sender?.role === 'ADMIN' ? 'admin' : 'user'}">
@@ -249,12 +222,93 @@ async function closeTicket(id) {
   catch (e) { alert(e.message); }
 }
 
+/* ---------- Materials & Prices ---------- */
+async function loadMaterials() {
+  const el = document.getElementById('tab-materials');
+  const rows = await api('/materials');
+  el.innerHTML = `
+    <div class="card"><h3>Add material</h3>
+      <label>Name</label><input id="mName" placeholder="e.g. Plain Sheet">
+      <label>Price per kg (PHP)</label><input id="mPrice" type="number" min="0" step="0.01" placeholder="e.g. 15.00">
+      <p><button class="btn green" onclick="addMaterial()">Add material</button></p></div>
+    <div class="card"><h3>All materials (${rows.length})</h3>
+      <p class="muted">Hidden materials disappear from the client's booking form but old bookings keep their original prices.</p>
+      <table>
+      <tr><th>Name</th><th>Price / kg</th><th>Status</th><th></th></tr>
+      ${rows.map(m => `<tr>
+        <td><input id="mName-${m.id}" value="${esc(m.name)}"></td>
+        <td style="max-width:150px"><input id="mPrice-${m.id}" type="number" min="0" step="0.01" value="${Number(m.pricePerKg).toFixed(2)}"></td>
+        <td>${m.isActive ? '<span class="pill CONFIRMED">Active</span>' : '<span class="pill">Hidden</span>'}</td>
+        <td>
+          <button class="btn green" onclick="saveMaterial(${m.id})">Save</button>
+          <button class="btn grey" onclick="toggleMaterial(${m.id}, ${!m.isActive})">${m.isActive ? 'Hide' : 'Show'}</button>
+        </td></tr>`).join('') || '<tr><td colspan=4 class=muted>No materials yet.</td></tr>'}
+      </table></div>`;
+}
+async function addMaterial() {
+  try {
+    await api('/materials', { method:'POST', body:{ name:mName.value, pricePerKg:Number(mPrice.value) } });
+    mName.value = ''; mPrice.value = '';
+    loadMaterials();
+  } catch (e) { alert(e.message); }
+}
+async function saveMaterial(id) {
+  const name = document.getElementById('mName-' + id).value;
+  const pricePerKg = Number(document.getElementById('mPrice-' + id).value);
+  if (!name.trim()) return alert('Name cannot be empty.');
+  if (isNaN(pricePerKg) || pricePerKg < 0) return alert('Price must be a positive number.');
+  try {
+    await api(`/materials/${id}`, { method:'PATCH', body:{ name, pricePerKg } });
+    loadMaterials();
+  } catch (e) { alert(e.message); }
+}
+async function toggleMaterial(id, isActive) {
+  try {
+    await api(`/materials/${id}`, { method:'PATCH', body:{ isActive } });
+    loadMaterials();
+  } catch (e) { alert(e.message); }
+}
 /* ---------- Stats ---------- */
-async function loadStats() {
-  const s = await api('/stats/admin');
+let statPeriod = '';
+function monthValue(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function periodLabel(p) {
+  if (!p) return 'all time';
+  const [y, m] = p.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleString('en-PH', { month: 'long', year: 'numeric' });
+}
+async function loadStats(period) {
+  if (period !== undefined) statPeriod = period;
+  const s = await api('/stats/admin' + (statPeriod ? '?period=' + encodeURIComponent(statPeriod) : ''));
   const orders = Object.entries(s.ordersByStatus || {}).map(([k,v]) =>
     `<div class="stat"><b>${v}</b>${k.replaceAll('_',' ')}</div>`).join('');
+  const invRows = (s.materialsInventory || []).map(m => {
+    const left = m.collectedKg - m.disposedKg;
+    const pill = left > 0
+      ? `<span class="pill warn">On storage · ${left.toFixed(1)} kg</span>`
+      : `<span class="pill ok">Disposed</span>`;
+    const btn = left > 0
+      ? `<button onclick="disposeMaterial(${m.materialId},'${esc(m.material)}')">Dispose…</button>`
+      : '';
+    return `<tr><td>${esc(m.material)}</td><td>${m.collectedKg.toFixed(1)} kg</td><td>${pill}</td><td>${btn}</td></tr>`;
+  }).join('');
+  const now = new Date();
+  const curM = monthValue(now);
+  const prevM = monthValue(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const selVal = !statPeriod ? '' : statPeriod === curM ? '__current' : statPeriod === prevM ? '__prev' : '__custom';
   document.getElementById('tab-stats').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <b>Period:</b>
+      <select onchange="onStatPeriodChange(this.value)">
+        <option value="" ${selVal===''?'selected':''}>All time</option>
+        <option value="__current" ${selVal==='__current'?'selected':''}>Current month</option>
+        <option value="__prev" ${selVal==='__prev'?'selected':''}>Previous month</option>
+        <option value="__custom" ${selVal==='__custom'?'selected':''}>Custom…</option>
+      </select>
+      <input type="month" id="stat-month-input" value="${statPeriod||''}" style="display:${selVal==='__custom'?'':'none'}" onchange="loadStats(this.value)">
+      <span id="stat-period-label" class="muted">${esc(periodLabel(s.period))}</span>
+    </div>
     <div class="stats">
       <div class="stat"><b>${s.totalClients}</b>Clients</div>
       <div class="stat"><b>${s.totalCollectors}</b>Collectors</div>
@@ -264,12 +318,31 @@ async function loadStats() {
     </div>
     <h3 style="margin-top:20px">Orders by status</h3>
     <div class="stats">${orders}</div>
-    <h3 style="margin-top:20px">Top materials</h3>
-    <div class="card"><table><tr><th>Material</th><th>Kg collected</th></tr>
-      ${(s.kilogramsByMaterial||[]).map(m => `<tr><td>${esc(m.material)}</td><td>${Number(m.kg).toFixed(1)} kg</td></tr>`).join('')}
+    <h3 style="margin-top:20px">Materials inventory</h3>
+    <div class="card"><table>
+      <tr><th>Materials</th><th>Collected</th><th>Status</th><th></th></tr>${invRows}
     </table></div>`;
 }
-
+function onStatPeriodChange(v) {
+  document.getElementById('stat-month-input').style.display = v === '__custom' ? '' : 'none';
+  if (v === '__custom') return;
+  const now = new Date();
+  loadStats(
+    v === '__current' ? monthValue(now)
+    : v === '__prev' ? monthValue(new Date(now.getFullYear(), now.getMonth() - 1, 1))
+    : ''
+  );
+}
+async function disposeMaterial(id, name) {
+  const input = prompt(`Weight (kg) of ${name} sent for disposal:`);
+  if (input === null) return;
+  const kg = Number(input);
+  if (!(kg > 0)) return alert('Enter a valid weight.');
+  try {
+    await api(`/materials/${id}/disposals`, { method: 'POST', body: { weightKg: kg } });
+    loadStats();
+  } catch (e) { alert(e.message); }
+}
 /* boot */
 if (TOKEN) {
   api('/auth/me').then(u => { if (u.user.role === 'ADMIN' || u.role === 'ADMIN') { ME = u.user || u; enter(); } })
