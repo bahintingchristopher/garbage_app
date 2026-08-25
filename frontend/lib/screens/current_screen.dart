@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../config/api_config.dart';
 import '../services/auth_service.dart';
@@ -7,9 +6,8 @@ import '../services/order_service.dart';
 import '../services/transaction_service.dart';
 import 'book_pickup_screen.dart';
 import '../utils/order_status.dart';
-import 'chat_detail_screen.dart';
-import '../services/chat_service.dart';
 import 'weighing_screen.dart';
+import '../widgets/shared_widgets.dart';
 
 class CurrentScreen extends StatefulWidget {
   const CurrentScreen({super.key});
@@ -21,7 +19,6 @@ class CurrentScreen extends StatefulWidget {
 class _CurrentScreenState extends State<CurrentScreen> {
   final _orders = OrderService();
   final _transactions = TransactionService();
-  final _chat = ChatService();
 
   String? _role;
   List<dynamic> _myOrders = [];
@@ -190,151 +187,37 @@ class _CurrentScreenState extends State<CurrentScreen> {
     }
   }
 
-  /// Opens (or creates) the conversation with the other party of an order.
-  Future<void> _openChat(Object otherUserId, String otherName) async {
-    try {
-      final convId = await _chat.startConversation(otherUserId);
-      if (!mounted) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChatDetailScreen(
-              conversationId: convId, otherName: otherName),
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    }
-  }
 
-  Future<void> _callClient(Object? number) async {
-    final cleaned = '$number'.replaceAll(RegExp(r'[^\d+]'), '');
-    if (cleaned.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No contact number available.')));
-      return;
-    }
-    try {
-      await launchUrl(Uri(scheme: 'tel', path: cleaned));
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Could not open the dialer.')));
-      }
-    }
-  }
-  Widget _statusChip(String status) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: statusColor(status).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          statusLabel(status),
-          style: TextStyle(
-            color: statusColor(status),
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
 
-  /// Payment summary shown to the client while awaiting their confirmation.
   Widget _paymentSection() {
     final tx = _pendingTx!;
     final deadline = DateTime.parse(tx['confirmationDeadline']).toLocal();
     final minsLeft = deadline.difference(DateTime.now()).inMinutes.clamp(0, 999);
-    final photoUrl = tx['photoUrl'];
-
     return Card(
+      color: Colors.orange.shade50,
       margin: const EdgeInsets.only(top: 12),
-      color: Colors.deepOrange.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.receipt_long, size: 20),
-                const SizedBox(width: 8),
-                const Text('Pickup complete - review payment',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const Spacer(),
-                Text('${minsLeft}m left',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-              ],
-            ),
-            const Divider(height: 20),
-            for (final item in tx['items'])
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('${item['material']} - ${item['weightKg']} kg x P${item['pricePerKg']}'),
-                    Text('P${item['subtotal']}'),
-                  ],
-                ),
-              ),
-            const Divider(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Total'),
-                Text('P${tx['totalAmount']}'),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Service fee (${ApiConfig.systemFeePercent}%)'),
-                Text(
-                    '-P${_feeOf(tx)}'),
-              ],
-            ),
+            const Text('Payment awaiting your confirmation',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            Text('Gross: P${tx['totalAmount']}'),
+            Text('Service fee (${ApiConfig.systemFeePercent}%): P${_feeOf(tx)}'),
+            const Divider(),
+            Text('Net to you: P${_netOf(tx)}',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text('Collector: ${tx['collector']['name']}'),
             const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("You'll receive",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(
-                    'P${_netOf(tx)}',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.green.shade800)),
-              ],
-            ),
-            if (photoUrl != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    '${ApiConfig.fileBase}$photoUrl',
-                    height: 140,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) =>
-                        const Text('(photo unavailable)'),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style:
-                    FilledButton.styleFrom(backgroundColor: Colors.green),
-                onPressed: _confirmPayment,
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Confirm & Pay'),
-              ),
+            Text('Deadline: $minsLeft min remaining',
+                style: const TextStyle(color: Colors.orange, fontSize: 12)),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _confirmPayment,
+              icon: const Icon(Icons.check_circle),
+              label: const Text('Confirm & pay'),
             ),
           ],
         ),
@@ -383,7 +266,7 @@ class _CurrentScreenState extends State<CurrentScreen> {
                     Text('Order #${o['id']}',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16)),
-                    _statusChip(o['status']),
+                    statusChip(o['status']),
                   ],
                 ),
                 const Divider(height: 24),
@@ -430,7 +313,7 @@ class _CurrentScreenState extends State<CurrentScreen> {
                   ),
                 if (o['collector'] != null && isActiveStatus(o['status']))
                   OutlinedButton.icon(
-                    onPressed: () => _openChat(
+                    onPressed: () => openChat(context, 
                         o['collector']['id'], o['collector']['name']),
                     icon: const Icon(Icons.chat_bubble_outline),
                     label: const Text('Chat with collector'),
@@ -513,7 +396,7 @@ class _CurrentScreenState extends State<CurrentScreen> {
                         children: [
                           Text('Order #${o['id']}',
                               style: const TextStyle(fontWeight: FontWeight.bold)),
-                          _statusChip(o['status']),
+                          statusChip(o['status']),
                           Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -523,7 +406,7 @@ class _CurrentScreenState extends State<CurrentScreen> {
                                 icon: const Icon(Icons.chat_bubble_outline,
                                     size: 20),
                                 onPressed: () =>
-                                    _openChat(o['client']['id'],
+                                    openChat(context, o['client']['id'],
                                         o['client']['name']),
                               ),
                               IconButton(
@@ -532,7 +415,7 @@ class _CurrentScreenState extends State<CurrentScreen> {
                                 icon: const Icon(Icons.call_outlined,
                                     size: 20),
                                 onPressed: () =>
-                                    _callClient(
+                                    callClient(context, 
                                         o['client']['contactNumber']),
                               ),
                             ],
@@ -595,6 +478,7 @@ class _CurrentScreenState extends State<CurrentScreen> {
     );
   }
 }
+
 
 
 

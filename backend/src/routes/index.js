@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 
 const router = express.Router();
 
@@ -35,21 +35,7 @@ router.use("/support", require("../modules/support/support.routes"));
 router.use("/stats", require("../modules/statistics/statistics.routes"));
 router.use("/conversations", require("../modules/chat/chat.routes"));
 router.use("/collectors", require("../modules/collectors/collector.routes"));
-
-// Future modules will be registered here:
-// router.use("/materials", require("../modules/materials/material.routes"));
-// router.use("/orders", require("../modules/orders/order.routes"));
-router.use("/transactions", require("../modules/transactions/transaction.routes"));
-router.use("/wallet", require("../modules/wallet/wallet.routes"));
-router.use("/topups", require("../modules/wallet/topup.routes"));
-router.use("/announcements", require("../modules/announcements/announcement.routes"));
-router.use("/feedback", require("../modules/feedback/feedback.routes"));
-router.use("/support", require("../modules/support/support.routes"));
-router.use("/stats", require("../modules/statistics/statistics.routes"));
-router.use("/conversations", require("../modules/chat/chat.routes"));
-router.use("/collectors", require("../modules/collectors/collector.routes"));
-// router.use("/wallet", require("../modules/wallet/wallet.routes"));
-// router.use("/messages", require("../modules/messages/message.routes"));
+router.use("/settings", require("../modules/settings/setting.routes"));
 
 // Admin helper: force-run the auto-complete sweep (useful for demos/tests)
 router.post(

@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
+import 'package:flutter/services.dart';
+
+import '../services/settings_service.dart';
 import '../services/wallet_service.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -59,7 +62,16 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
+  final _settings = SettingsService();
+
   Future<void> _openTopUpSheet() async {
+    Map<String, dynamic>? payment;
+    try {
+      payment = await _settings.paymentSettings();
+    } catch (_) {
+      payment = null;
+    }
+    if (!mounted) return;
     final amountCtrl = TextEditingController();
     final refCtrl = TextEditingController();
     String method = 'GCASH';
@@ -67,7 +79,7 @@ class _WalletScreenState extends State<WalletScreen> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
+        builder: (ctx, setSheet) => SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
               16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
           child: Column(
@@ -81,6 +93,51 @@ class _WalletScreenState extends State<WalletScreen> {
                 'Send the money via GCash or bank, then file this request. '
                 'An admin verifies it before your balance updates.',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet_outlined, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Admin GCash Number',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade700)),
+                          Text(
+                            (payment?['gcashNumber'] as String?)
+                                    ?.isNotEmpty ==
+                                true
+                                ? payment!['gcashNumber'] as String
+                                : 'Not set yet. Please contact the admin.',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if ((payment?['gcashNumber'] as String?)?.isNotEmpty == true)
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 18),
+                        tooltip: 'Copy GCash number',
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(
+                              text: payment!['gcashNumber'] as String));
+                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                              content: Text('GCash number copied')));
+                        },
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               TextField(

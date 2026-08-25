@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/order_service.dart';
 import '../utils/order_status.dart';
+import '../widgets/shared_widgets.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -86,21 +87,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return _ordersList;
   }
 
-  Widget _statusChip(String status) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: statusColor(status).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          statusLabel(status),
-          style: TextStyle(
-            color: statusColor(status),
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
+
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +149,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                           Text('Order #${o['id']}',
                                               style: const TextStyle(fontWeight: FontWeight.bold)),
                                           const Spacer(),
-                                          _statusChip(o['status']),
+                                          statusChip(o['status']),
                                         ],
                                       ),
                                       subtitle: Column(

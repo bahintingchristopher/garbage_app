@@ -1,17 +1,14 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
-import '../services/chat_service.dart';
 import '../services/location_service.dart';
+import '../widgets/shared_widgets.dart';
 import '../services/order_service.dart';
-import '../utils/order_status.dart';
-import 'chat_detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -23,7 +20,6 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   final _locations = LocationService();
   final _orders = OrderService();
-  final _chat = ChatService();
   final _mapController = MapController();
 
   /// Fallback: Quezon City area.
@@ -147,22 +143,6 @@ class _MapScreenState extends State<MapScreen> {
 
   // ---------- Bottom sheets ----------
 
-  Future<void> _callClient(Object? number) async {
-    final cleaned = '$number'.replaceAll(RegExp(r'[^\d+]'), '');
-    if (cleaned.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No contact number available.')));
-      return;
-    }
-    try {
-      await launchUrl(Uri(scheme: 'tel', path: cleaned));
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Could not open the dialer.')));
-      }
-    }
-  }
 
   void _showClientSheet(Map o) {
     showModalBottomSheet(
@@ -201,7 +181,7 @@ class _MapScreenState extends State<MapScreen> {
                       ],
                     ),
                   ),
-                  _chip('${o['status']}'),
+                  statusChip('${o['status']}'),
                 ],
               ),
               const Divider(height: 24),
@@ -250,7 +230,7 @@ class _MapScreenState extends State<MapScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () {
                         Navigator.pop(ctx);
-                        _openChat(o['client']['id'], o['client']['name']);
+                        openChat(context, o['client']['id'], o['client']['name']);
                       },
                       icon: const Icon(Icons.chat_bubble_outline),
                       label: const Text('Chat'),
@@ -259,7 +239,7 @@ class _MapScreenState extends State<MapScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: FilledButton.tonalIcon(
-                      onPressed: () => _callClient(o['client']['contactNumber']),
+                      onPressed: () => callClient(context, o['client']['contactNumber']),
                       icon: const Icon(Icons.call_outlined),
                       label: const Text('Call'),
                     ),
@@ -335,18 +315,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _chip(String status) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: statusColor(status).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(statusLabel(status),
-            style: TextStyle(
-                color: statusColor(status),
-                fontSize: 11,
-                fontWeight: FontWeight.bold)),
-      );
 
   Widget _infoRow(IconData icon, String text) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -360,24 +328,6 @@ class _MapScreenState extends State<MapScreen> {
         ),
       );
 
-  Future<void> _openChat(Object otherUserId, String otherName) async {
-    try {
-      final convId = await _chat.startConversation(otherUserId);
-      if (!mounted) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              ChatDetailScreen(conversationId: convId, otherName: otherName),
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    }
-  }
 
   // ---------- Markers ----------
 

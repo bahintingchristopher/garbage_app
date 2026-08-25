@@ -90,8 +90,10 @@ class ChatService {
     if (_socket != null || _connecting) return;
     _connecting = true;
     _auth.getToken().then((token) {
-      _connecting = false;
-      if (token == null || _socket != null) return;
+      if (token == null || _socket != null) {
+        _connecting = false;
+        return;
+      }
       final socket = io.io(
         ApiConfig.fileBase,
         io.OptionBuilder()
@@ -100,11 +102,24 @@ class ChatService {
             .build(),
       );
       _socket = socket;
+      socket.onConnect((_) {
+        _connecting = false;
+      });
+      socket.onConnectError((_) {
+        _connecting = false;
+        _socket = null;
+      });
+      socket.onDisconnect((_) {
+        _connecting = false;
+        _socket = null;
+      });
       socket.on('new_message', (data) {
         if (data is Map) {
           _incoming.add(Map<String, dynamic>.from(data));
         }
       });
+    }).catchError((_) {
+      _connecting = false;
     });
   }
 

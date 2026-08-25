@@ -1,10 +1,11 @@
-const { Op } = require("sequelize");
+﻿const { Op } = require("sequelize");
 const ApiError = require("../../utils/ApiError");
 const { User } = require("../users/user.model");
 const {
   SupportTicket,
   TicketMessage,
 } = require("./support.model");
+const sequelize = require("../../config/database");
 
 async function create(userId, { subject, message }) {
   if (!subject || !message) {
@@ -24,7 +25,6 @@ async function create(userId, { subject, message }) {
   });
 }
 
-const sequelize = require("../../config/database");
 
 async function getFullById(id, opts = {}) {
   const ticket = await SupportTicket.findByPk(id, {

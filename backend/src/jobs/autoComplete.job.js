@@ -1,4 +1,4 @@
-const { Op } = require("sequelize");
+﻿const { Op } = require("sequelize");
 const sequelize = require("../config/database");
 const { Transaction } = require("../modules/transactions/transaction.model");
 const { Order } = require("../modules/orders/order.model");
@@ -12,7 +12,7 @@ async function runAutoComplete() {
       confirmationStatus: "PENDING",
       confirmationDeadline: { [Op.lt]: new Date() },
     },
-    attributes: ["id", "orderId", "collectorId"],
+    attributes: ["id", "orderId", "collectorId", "totalAmount"],
   });
 
   if (expired.length === 0) return 0;

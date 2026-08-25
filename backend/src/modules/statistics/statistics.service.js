@@ -1,6 +1,6 @@
-const { fn, col, Op } = require("sequelize");
+﻿const { fn, col, Op } = require("sequelize");
 const sequelize = require("../../config/database");
-const { User, ClientProfile, CollectorProfile } = require("../users/user.model");
+const { User, ClientProfile } = require("../users/user.model");
 const { Order } = require("../orders/order.model");
 const {
   Transaction,
@@ -94,7 +94,7 @@ async function collectorStats(collectorId) {
       ratingAgg[0] && ratingAgg[0].average
         ? Math.round(Number(ratingAgg[0].average) * 10) / 10
         : 0,
-    vehicleCount: profile ? undefined : undefined,
+    vehicleCount: 0,
   };
 }
 

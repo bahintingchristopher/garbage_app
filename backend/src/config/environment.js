@@ -1,4 +1,4 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 
 const env = process.env.NODE_ENV || "development";
 
@@ -17,7 +17,7 @@ module.exports = {
   },
   systemFeePercent: Number(process.env.SYSTEM_FEE_PERCENT) || 20,
   jwt: {
-    secret: process.env.JWT_SECRET || "dev_only_secret_change_me_in_production",
+    secret: process.env.JWT_SECRET || (env === "production" ? (() => { throw new Error("JWT_SECRET is required in production") })() : "dev_only_secret_change_me_in_production"),
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   },
 };

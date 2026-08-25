@@ -1,8 +1,14 @@
-class ApiConfig {
-  /// Real phone on the same Wi-Fi: use this PC's local IP (from `ipconfig`).
-  /// If your router assigns a new IP later, update it here and rebuild.
-  /// For the Android emulator, use http://10.0.2.2:5000/api instead.
-  static const String baseUrl = 'http://192.168.8.39:5000/api';
+﻿class ApiConfig {
+  /// Base URL is injected at launch time via --dart-define=API_BASE_URL=...
+  /// Use frontend\run-dev.ps1 to auto-detect the PC's current Wi-Fi IP and
+  /// launch the app with the correct value. The default below is only a
+  /// fallback for a bare `flutter run` on this machine.
+  ///
+  /// Android emulator fallback: http://10.0.2.2:5000/api
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:5000/api',
+  );
 
   /// Server origin for uploaded files (photoUrl values start with /uploads/).
   static String get fileBase => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
@@ -12,3 +18,4 @@ class ApiConfig {
   /// SYSTEM_FEE_PERCENT value configured in the backend .env.
   static const int systemFeePercent = 20;
 }
+
