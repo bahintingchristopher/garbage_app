@@ -551,9 +551,8 @@ class _MapScreenState extends State<MapScreen> {
       );
     }
 
-    // Live client locations (collector view — from real-time push).
+    // Live client locations (collector view ï¿½ from real-time push).
     for (final c in _clientLocations) {
-      final id = int.tryParse('${c['clientId']}');
       final stale = _isStale(c['updatedAt']);
       markers.add(
         Marker(

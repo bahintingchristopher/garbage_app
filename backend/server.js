@@ -23,7 +23,7 @@ process.on("uncaughtException", (err) => {
     console.log("[db] PostgreSQL connected");
 
     if (db.sync) {
-      await sequelize.sync();
+      await sequelize.sync({ alter: true });
       console.log("[db] Tables synced (auto-create enabled)");
       await seedMaterials();
     }
