@@ -129,5 +129,16 @@ class ApiClient {
       throw ApiException('Cannot reach server.');
     }
   }
-}
 
+  /// Fetches the live system fee from the backend and updates ApiConfig.
+  Future<void> fetchSystemFee() async {
+    try {
+      final data = await get('/settings/system-fee');
+      if (data != null && data['systemFeePercent'] != null) {
+        ApiConfig.systemFeePercent = (data['systemFeePercent'] as num).toInt();
+      }
+    } catch (_) {
+      // Keep the default value if the API call fails
+    }
+  }
+}

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'services/api_client.dart';
 
 void main() {
   runApp(const GarbageApp());
@@ -43,6 +44,10 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _checkSession() async {
     final loggedIn = await AuthService().hasToken();
+    if (!mounted) return;
+    if (loggedIn) {
+      await ApiClient.instance.fetchSystemFee();
+    }
     if (!mounted) return;
     setState(() {
       _loggedIn = loggedIn;
