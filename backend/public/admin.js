@@ -1,4 +1,4 @@
-﻿const API = location.origin + '/api';
+const API = location.origin + '/api';
 let TOKEN = localStorage.getItem('adminToken') || '';
 let ME = null;
 let currentTab = 'topups';
@@ -39,7 +39,7 @@ function enter() {
 function show(tab) {
   currentTab = tab;
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  ['topups','announcements','support','stats','materials','collectors','clients','pending'].forEach(t =>
+  ['topups','announcements','support','stats','materials','collectors','clients','pending','features'].forEach(t =>
     document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none');
   loadTab(tab);
 }
@@ -53,6 +53,7 @@ function loadTab(tab) {
   if (tab === 'collectors') loadCollectors();
   if (tab === 'clients') loadClients();
   if (tab === 'pending') loadPending();
+  if (tab === 'features') loadFeatures();
 }
 
 /* ---------- Top-ups ---------- */
@@ -250,10 +251,10 @@ async function loadStats(period) {
   const invRows = (s.materialsInventory || []).map(m => {
     const left = m.collectedKg - m.disposedKg;
     const pill = left > 0
-      ? `<span class="pill warn">On storage · ${left.toFixed(1)} kg</span>`
+      ? `<span class="pill warn">On storage Â· ${left.toFixed(1)} kg</span>`
       : `<span class="pill ok">Disposed</span>`;
     const btn = left > 0
-      ? `<button data-action="dispose-material" data-id="${m.materialId}" data-name="${esc(m.material)}">Dispose…</button>`
+      ? `<button data-action="dispose-material" data-id="${m.materialId}" data-name="${esc(m.material)}">Disposeâ€¦</button>`
       : '';
     return `<tr><td>${esc(m.material)}</td><td>${m.collectedKg.toFixed(1)} kg</td><td>${pill}</td><td>${btn}</td></tr>`;
   }).join('');
@@ -268,7 +269,7 @@ async function loadStats(period) {
         <option value="" ${selVal===''?'selected':''}>All time</option>
         <option value="__current" ${selVal==='__current'?'selected':''}>Current month</option>
         <option value="__prev" ${selVal==='__prev'?'selected':''}>Previous month</option>
-        <option value="__custom" ${selVal==='__custom'?'selected':''}>Custom…</option>
+        <option value="__custom" ${selVal==='__custom'?'selected':''}>Customâ€¦</option>
       </select>
       <input type="month" id="stat-month-input" value="${statPeriod||''}" style="display:${selVal==='__custom'?'':'none'}" data-action="load-stats-month">
       <span id="stat-period-label" class="muted">${esc(periodLabel(s.period))}</span>
@@ -292,7 +293,7 @@ async function loadStats(period) {
       <tr><th>Collector</th><th>Balance</th></tr>
       ${(s.collectorBalances||[]).map(b => {
         const low = b.balance <= 0;
-        return `<tr><td>${esc(b.name)}</td><td style="${low ? 'color:#c62828;font-weight:bold' : ''}">P${Number(b.balance).toFixed(2)}${low ? ' — needs top-up' : ''}</td></tr>`;
+        return `<tr><td>${esc(b.name)}</td><td style="${low ? 'color:#c62828;font-weight:bold' : ''}">P${Number(b.balance).toFixed(2)}${low ? ' â€” needs top-up' : ''}</td></tr>`;
       }).join('') || '<tr><td colspan="2">No collectors yet</td></tr>'}
     </table></div>`;
 }
@@ -327,7 +328,7 @@ async function loadCollectors() {
         <td>${esc(c.accountNumber || '')}</td>
         <td>${esc(c.contactNumber || '')}</td>
         <td>${esc(c.address || '')}</td>
-        <td style="${c.ecoinBalance <= 0 ? 'color:#c62828;font-weight:bold' : ''}">P${Number(c.ecoinBalance).toFixed(2)}${c.ecoinBalance <= 0 ? ' — needs top-up' : ''}</td>
+        <td style="${c.ecoinBalance <= 0 ? 'color:#c62828;font-weight:bold' : ''}">P${Number(c.ecoinBalance).toFixed(2)}${c.ecoinBalance <= 0 ? ' â€” needs top-up' : ''}</td>
       </tr>`).join('') || '<tr><td colspan="5">No collectors yet</td></tr>'}
     </table></div>`;
 }
@@ -388,6 +389,25 @@ async function runAutoComplete() {
   } catch (e) { alert(e.message); }
 }
 
+/* ---------- Features / Payment Settings ---------- */
+async function loadFeatures() {
+  const el = document.getElementById('tab-features');
+  const s = await api('/settings/payment');
+  el.innerHTML = [ '<div class="card"><h3>Payment Settings</h3>',
+    '<p class="muted">This GCash number is shown to collectors in the app when they top up their eCoin balance.</p>',
+    '<label>GCash Number</label>',
+    '<input id="gcashNumber" value="' + esc(s.gcashNumber || '') + '" placeholder="e.g. 09171234567">',
+    '<p><button class="btn green" data-action="save-gcash">Save</button></p>',
+    '<div id="gcashMsg" class="muted"></div>',
+    '</div>' ].join('');
+}
+async function saveGcash() {
+  try {
+    await api('/settings/payment', { method: 'PUT', body: { gcashNumber: gcashNumber.value } });
+    document.getElementById('gcashMsg').textContent = 'Saved!';
+    setTimeout(() => { const m = document.getElementById('gcashMsg'); if (m) m.textContent = ''; }, 3000);
+  } catch (e) { alert(e.message); }
+}
 /* ---------- Event Delegation ---------- */
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-action]');
@@ -415,6 +435,7 @@ document.addEventListener('click', e => {
     case 'dispose-material': disposeMaterial(id, t.dataset.name); break;
     case 'auto-complete': runAutoComplete(); break;
     case 'confirm-tx': confirmTx(id); break;
+    case 'save-gcash': saveGcash(); break;
   }
 });
 

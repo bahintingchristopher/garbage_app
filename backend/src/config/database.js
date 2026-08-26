@@ -1,5 +1,20 @@
-const { Sequelize } = require("sequelize");
+﻿const { Sequelize } = require("sequelize");
 const { db, isProd } = require("./environment");
+
+function sanitizeUrl(raw) {
+  try {
+    const url = new URL(raw);
+    if (url.password) {
+      const decoded = decodeURIComponent(url.password);
+      if (url.password !== decoded) {
+        url.password = encodeURIComponent(decoded);
+      }
+    }
+    return url.toString();
+  } catch (_) {
+    return raw;
+  }
+}
 
 function buildOptions() {
   const options = {
@@ -9,7 +24,7 @@ function buildOptions() {
   };
 
   try {
-    const { hostname } = new URL(db.url);
+    const { hostname } = new URL(sanitizeUrl(db.url));
     const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
     if (!isLocal) {
       options.dialectOptions = {
@@ -24,6 +39,6 @@ function buildOptions() {
   return options;
 }
 
-const sequelize = new Sequelize(db.url, buildOptions());
+const sequelize = new Sequelize(sanitizeUrl(db.url), buildOptions());
 
 module.exports = sequelize;
