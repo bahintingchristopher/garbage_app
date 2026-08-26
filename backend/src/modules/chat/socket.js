@@ -1,8 +1,9 @@
-const { Server } = require("socket.io");
+﻿const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const { jwt: jwtConfig } = require("../../config/environment");
 const userService = require("../users/user.service");
 const chatService = require("./chat.service");
+const collectorService = require("../collectors/collector.service");
 
 let io = null;
 
@@ -26,7 +27,21 @@ function initSocket(server) {
 
   io.on("connection", async (socket) => {
     const userId = Number(socket.user.id);
+    const role = socket.user.role;
     socket.join("user:" + userId);
+
+    // Auto-join tracking rooms based on active orders
+    try {
+      if (role === "COLLECTOR") {
+        const clientIds = await collectorService.getClientIdsForCollector(userId);
+        clientIds.forEach((cid) => socket.join("tracking:" + cid));
+      } else if (role === "CLIENT") {
+        const collectorIds = await collectorService.getCollectorIdsForClient(userId);
+        collectorIds.forEach((cid) => socket.join("tracking:" + cid));
+      }
+    } catch (_) {
+      /* non-fatal */
+    }
 
     // Auto-join every conversation this user belongs to
     try {
@@ -35,6 +50,40 @@ function initSocket(server) {
     } catch (_) {
       /* non-fatal */
     }
+
+    // Client joins a specific collector's tracking room
+    socket.on("track_collector", async (payload, ack) => {
+      try {
+        const collectorId = Number(payload.collectorId);
+        // Verify there is an active order between this client and the collector
+        const clientIds = await collectorService.getClientIdsForCollector(collectorId);
+        if (!clientIds.includes(userId)) {
+          if (typeof ack === "function") ack({ success: false, message: "No active order with this collector" });
+          return;
+        }
+        socket.join("tracking:" + userId);
+        if (typeof ack === "function") ack({ success: true });
+      } catch (err) {
+        if (typeof ack === "function") ack({ success: false, message: err.message });
+      }
+    });
+
+    // Collector joins a specific client's tracking room
+    socket.on("track_client", async (payload, ack) => {
+      try {
+        const clientId = Number(payload.clientId);
+        // Verify there is an active order between this collector and the client
+        const collectorIds = await collectorService.getCollectorIdsForClient(clientId);
+        if (!collectorIds.includes(userId)) {
+          if (typeof ack === "function") ack({ success: false, message: "No active order with this client" });
+          return;
+        }
+        socket.join("tracking:" + userId);
+        if (typeof ack === "function") ack({ success: true });
+      } catch (err) {
+        if (typeof ack === "function") ack({ success: false, message: err.message });
+      }
+    });
 
     socket.on("join_conversation", async (payload, ack) => {
       try {
@@ -74,7 +123,7 @@ function initSocket(server) {
     socket.on("disconnect", () => {});
   });
 
-  console.log("[socket] Socket.IO ready for real-time chat");
+  console.log("[socket] Socket.IO ready for real-time chat & location tracking");
   return io;
 }
 

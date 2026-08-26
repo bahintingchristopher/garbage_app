@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -35,13 +35,54 @@ class LocationService {
     final res = await http
         .patch(
           Uri.parse('${ApiConfig.baseUrl}/collectors/location'),
-          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
           body: jsonEncode({'latitude': latitude, 'longitude': longitude}),
         )
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) {
       final json = jsonDecode(res.body);
       throw ApiException(json['message'] ?? 'Failed to update location');
+    }
+  }
+
+  /// Client pushes fresh GPS coordinates.
+  Future<void> pushClientLocation(double latitude, double longitude) async {
+    final token = await _auth.getToken();
+    final res = await http
+        .patch(
+          Uri.parse('${ApiConfig.baseUrl}/collectors/client-location'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({'latitude': latitude, 'longitude': longitude}),
+        )
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      final json = jsonDecode(res.body);
+      throw ApiException(json['message'] ?? 'Failed to update client location');
+    }
+  }
+
+  /// Live client locations for a collector's active orders.
+  Future<List<dynamic>> clientLocations() async {
+    try {
+      final token = await _auth.getToken();
+      final res = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/collectors/client-locations'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+      final json = jsonDecode(res.body);
+      if (res.statusCode == 200) return json['data'];
+      throw ApiException(json['message'] ?? 'Failed to load client locations');
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Cannot reach server.');
     }
   }
 

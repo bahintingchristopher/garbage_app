@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -20,6 +20,14 @@ class ChatService {
   /// Broadcast stream of every incoming message (app-wide, single socket).
   final _incoming = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get incoming => _incoming.stream;
+
+  /// Broadcast stream of collector location updates.
+  final _collectorLocations = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get collectorLocationUpdates => _collectorLocations.stream;
+
+  /// Broadcast stream of client location updates.
+  final _clientLocations = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get clientLocationUpdates => _clientLocations.stream;
 
   /// The conversation currently open on screen (so global listeners can
   /// suppress banners for it). Set by ChatDetailScreen.
@@ -118,6 +126,16 @@ class ChatService {
           _incoming.add(Map<String, dynamic>.from(data));
         }
       });
+      socket.on('collector_location_update', (data) {
+        if (data is Map) {
+          _collectorLocations.add(Map<String, dynamic>.from(data));
+        }
+      });
+      socket.on('client_location_update', (data) {
+        if (data is Map) {
+          _clientLocations.add(Map<String, dynamic>.from(data));
+        }
+      });
     }).catchError((_) {
       _connecting = false;
     });
@@ -135,4 +153,3 @@ class ChatService {
     _socket = null;
   }
 }
-

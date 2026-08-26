@@ -68,6 +68,9 @@ const ClientProfile = sequelize.define(
     id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
     totalOrders: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     rating: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
+    currentLatitude: { type: DataTypes.DOUBLE, validate: { min: -90, max: 90 } },
+    currentLongitude: { type: DataTypes.DOUBLE, validate: { min: -180, max: 180 } },
+    locationUpdatedAt: { type: DataTypes.DATE },
   },
   { tableName: "client_profiles" }
 );
