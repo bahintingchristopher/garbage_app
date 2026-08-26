@@ -415,7 +415,7 @@ async function loadSettings() {
   const d = await api('/settings/system-fee');
   el.innerHTML = [
     '<div class="card"><h3>System Fee</h3>',
-    '<p class="muted">This percentage is charged from the collector's eCoin balance on each completed transaction.</p>',
+    '<p class="muted">This percentage is charged from the collector&#39;s eCoin balance on each completed transaction.</p>',
     '<label>Service fee (%)</label>',
     '<input id="systemFeePercent" type="number" min="0" max="100" step="1" value="' + d.systemFeePercent + '" style="max-width:120px">',
     '<p><button class="btn green" data-action="save-fee">Save</button></p>',
