@@ -258,26 +258,11 @@ class _MapScreenState extends State<MapScreen> {
       );
 
 
-  /// Centers the map on the first tracked client and zooms to a comfortable level.
-  void _centerOnClient() {
-    LatLng? target;
-
-    // Prefer live client location (real-time push).
-    if (_clientLocations.isNotEmpty) {
-      target = LatLng(
-        (_clientLocations.first['latitude'] as num).toDouble(),
-        (_clientLocations.first['longitude'] as num).toDouble(),
-      );
-    }
-    // Fallback: order pickup location.
-    if (target == null && _clientOrders.isNotEmpty) {
-      target = LatLng(
-        (_clientOrders.first['latitude'] as num).toDouble(),
-        (_clientOrders.first['longitude'] as num).toDouble(),
-      );
-    }
-    if (target == null) return;
-    _mapController.move(target, 16);
+  /// Centers the map on the user's own GPS location at street-level zoom.
+  void _centerOnMyLocation() {
+    if (_myPosition == null) return;
+    final target = LatLng(_myPosition!.latitude, _myPosition!.longitude);
+    _mapController.move(target, 17);
   }
 
 
@@ -705,9 +690,7 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(height: 8),
                       _zoomButton(
                         Icons.my_location,
-                        _clientLocations.isNotEmpty || _clientOrders.isNotEmpty
-                            ? _centerOnClient
-                            : () {},
+                        _centerOnMyLocation,
                       ),
                     ],
                   ),
