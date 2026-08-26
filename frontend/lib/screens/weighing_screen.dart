@@ -226,7 +226,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                    'System fee (${ApiConfig.systemFeePercent}%)'),
+                                    'Service fee (${ApiConfig.systemFeePercent}%)'),
                                 Text('-P${_fee.toStringAsFixed(2)}'),
                               ],
                             ),

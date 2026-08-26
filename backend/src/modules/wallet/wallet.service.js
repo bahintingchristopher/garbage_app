@@ -3,6 +3,7 @@ const sequelize = require("../../config/database");
 const ApiError = require("../../utils/ApiError");
 const { Wallet } = require("../users/user.model");
 const { WalletTransaction } = require("./wallet.model");
+const settingService = require("../settings/setting.service");
 
 async function getWallet(userId, options = {}) {
   const [wallet] = await Wallet.findOrCreate({
@@ -67,7 +68,7 @@ async function applyChange(
 /// to the collector's eCoin wallet. Idempotent: safe to call twice for the
 /// same transaction id (e.g. confirm vs auto-complete race).
 async function chargeTransactionFee(collectorId, transactionId, totalAmount, t) {
-  const { systemFeePercent } = require("../../config/environment");
+  const systemFeePercent = await settingService.getSystemFee();
   const fee =
     Math.round(Number(totalAmount) * (systemFeePercent / 100) * 100) / 100;
   if (!(fee > 0)) return null;

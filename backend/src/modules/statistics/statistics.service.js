@@ -9,6 +9,7 @@ const {
 const Material = require("../materials/material.model");
 const Feedback = require("../feedback/feedback.model");
 const ApiError = require("../../utils/ApiError");
+const settingService = require("../settings/setting.service");
 
 const COMPLETED = ["CONFIRMED", "AUTO_COMPLETED"];
 
@@ -242,7 +243,7 @@ async function adminStats(periodInput) {
     totalMoneyProcessed: Number(money || 0),
     totalKilogramsRecycled: inventory.reduce((s, r) => s + r.collectedKg, 0),
     materialsInventory: inventory,
-    systemFeePercent: require("../../config/environment").systemFeePercent,
+    systemFeePercent: await settingService.getSystemFee(),
     systemFeesCollected: Number(feeAgg ? feeAgg.total : 0),
     collectorBalances: balanceRows.map((b) => ({
       id: Number(b.id),

@@ -1,5 +1,6 @@
-﻿const ApiError = require("../../utils/ApiError");
+const ApiError = require("../../utils/ApiError");
 const Setting = require("./setting.model");
+const { systemFeePercent: defaultFee } = require("../../config/environment");
 
 const PAYMENT_KEYS = ["gcashNumber", "bankAccountName", "bankAccountNumber"];
 
@@ -13,6 +14,24 @@ function sanitizeGcash(value) {
 
 function sanitizeText(value, max = 100) {
   return String(value ?? "").trim().slice(0, max);
+}
+
+function sanitizePercent(value, fallback) {
+  const n = Number(value);
+  if (isNaN(n) || n < 0 || n > 100) return fallback;
+  return n;
+}
+
+async function getSystemFee() {
+  const row = await Setting.findOne({ where: { key: "systemFeePercent" } });
+  if (row) return Number(row.value);
+  return defaultFee;
+}
+
+async function updateSystemFee(adminId, percent) {
+  const value = String(sanitizePercent(percent, 12));
+  await Setting.upsert({ key: "systemFeePercent", value, updatedBy: adminId });
+  return { systemFeePercent: Number(value) };
 }
 
 async function getPaymentSettings() {
@@ -44,4 +63,4 @@ async function updatePaymentSettings(adminId, patch) {
   return getPaymentSettings();
 }
 
-module.exports = { getPaymentSettings, updatePaymentSettings };
+module.exports = { getPaymentSettings, updatePaymentSettings, getSystemFee, updateSystemFee };

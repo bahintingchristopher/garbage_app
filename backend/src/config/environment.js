@@ -15,7 +15,7 @@ module.exports = {
   ecoin: {
     feePerTransaction: Number(process.env.ECOIN_FEE_PER_TRANSACTION) || 10,
   },
-  systemFeePercent: Number(process.env.SYSTEM_FEE_PERCENT) || 20,
+  systemFeePercent: Number(process.env.SYSTEM_FEE_PERCENT) || 12,
   jwt: {
     secret: process.env.JWT_SECRET || (env === "production" ? (() => { throw new Error("JWT_SECRET is required in production") })() : "dev_only_secret_change_me_in_production"),
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",

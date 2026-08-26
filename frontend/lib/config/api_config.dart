@@ -16,6 +16,6 @@
   /// System fee (% of a transaction's gross amount), charged to the
   /// collector's eCoin balance on completion. Keep in sync with the
   /// SYSTEM_FEE_PERCENT value configured in the backend .env.
-  static const int systemFeePercent = 20;
+  static const int systemFeePercent = 12;
 }
 

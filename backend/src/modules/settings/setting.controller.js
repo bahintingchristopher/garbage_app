@@ -1,4 +1,4 @@
-﻿const settingService = require("./setting.service");
+const settingService = require("./setting.service");
 const asyncHandler = require("../../utils/asyncHandler");
 
 exports.getPayment = asyncHandler(async (req, res) => {
@@ -12,4 +12,14 @@ exports.updatePayment = asyncHandler(async (req, res) => {
     req.body || {}
   );
   res.json({ success: true, message: "Payment settings saved", data });
+});
+
+exports.getSystemFee = asyncHandler(async (req, res) => {
+  const percent = await settingService.getSystemFee();
+  res.json({ success: true, data: { systemFeePercent: percent } });
+});
+
+exports.updateSystemFee = asyncHandler(async (req, res) => {
+  const data = await settingService.updateSystemFee(req.user.id, req.body.systemFeePercent);
+  res.json({ success: true, message: "System fee updated", data });
 });

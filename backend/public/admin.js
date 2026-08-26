@@ -39,7 +39,7 @@ function enter() {
 function show(tab) {
   currentTab = tab;
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  ['topups','announcements','support','stats','materials','collectors','clients','pending','features'].forEach(t =>
+  ['topups','announcements','support','stats','materials','collectors','clients','pending','features','settings'].forEach(t =>
     document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none');
   loadTab(tab);
 }
@@ -54,6 +54,7 @@ function loadTab(tab) {
   if (tab === 'clients') loadClients();
   if (tab === 'pending') loadPending();
   if (tab === 'features') loadFeatures();
+  if (tab === 'settings') loadSettings();
 }
 
 /* ---------- Top-ups ---------- */
@@ -408,6 +409,30 @@ async function saveGcash() {
     setTimeout(() => { const m = document.getElementById('gcashMsg'); if (m) m.textContent = ''; }, 3000);
   } catch (e) { alert(e.message); }
 }
+/* ---------- Settings ---------- */
+async function loadSettings() {
+  const el = document.getElementById('tab-settings');
+  const d = await api('/settings/system-fee');
+  el.innerHTML = [
+    '<div class="card"><h3>System Fee</h3>',
+    '<p class="muted">This percentage is charged from the collector's eCoin balance on each completed transaction.</p>',
+    '<label>Service fee (%)</label>',
+    '<input id="systemFeePercent" type="number" min="0" max="100" step="1" value="' + d.systemFeePercent + '" style="max-width:120px">',
+    '<p><button class="btn green" data-action="save-fee">Save</button></p>',
+    '<div id="feeMsg" class="muted"></div>',
+    '</div>'
+  ].join('');
+}
+async function saveSettings() {
+  const val = Number(systemFeePercent.value);
+  if (isNaN(val) || val < 0 || val > 100) return alert('Enter a valid percentage (0-100).');
+  try {
+    await api('/settings/system-fee', { method: 'PUT', body: { systemFeePercent: val } });
+    document.getElementById('feeMsg').textContent = 'Saved!';
+    setTimeout(() => { const m = document.getElementById('feeMsg'); if (m) m.textContent = ''; }, 3000);
+  } catch (e) { alert(e.message); }
+}
+
 /* ---------- Event Delegation ---------- */
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-action]');
@@ -436,6 +461,7 @@ document.addEventListener('click', e => {
     case 'auto-complete': runAutoComplete(); break;
     case 'confirm-tx': confirmTx(id); break;
     case 'save-gcash': saveGcash(); break;
+    case 'save-fee': saveSettings(); break;
   }
 });
 

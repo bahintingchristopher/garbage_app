@@ -8,6 +8,7 @@ const {
   TransactionItem,
 } = require("./transaction.model");
 const walletService = require("../wallet/wallet.service");
+const settingService = require("../settings/setting.service");
 
 const CONFIRMATION_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -100,7 +101,7 @@ async function submitWeights(orderId, collectorId, items) {
     };
   });
   total = Math.round(total * 100) / 100;
-  const { systemFeePercent } = require("../../config/environment");
+  const systemFeePercent = await settingService.getSystemFee();
   const systemFee =
     Math.round(total * (systemFeePercent / 100) * 100) / 100;
 
