@@ -7,7 +7,7 @@
   /// Android emulator fallback: http://10.0.2.2:5000/api
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:5000/api',
+    defaultValue: 'https://garbage-app-s676.onrender.com/api',
   );
 
   /// Server origin for uploaded files (photoUrl values start with /uploads/).
